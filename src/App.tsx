@@ -23,6 +23,7 @@ import { Card, CardBody, CardHeader } from './components/Card';
 import { Input } from './components/Input';
 import { Button } from './components/Button';
 import { Toasts } from './components/Toasts';
+import { SavedSignatures } from './components/SavedSignatures';
 import { useToast } from './lib/toast';
 import {
   ACCENT_PRESETS,
@@ -355,6 +356,14 @@ export default function App() {
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-6 items-start">
           {/* ── Form ── */}
           <div className="space-y-6">
+            <SavedSignatures
+              suggestedName={
+                data.fullName.trim()
+                  ? `${data.fullName.trim()} – ${TEMPLATES.find((t) => t.id === data.template)?.name ?? ''}`
+                  : 'Moja stopka'
+              }
+            />
+
             {EMPLOYEES.length > 0 && (
               <Section icon={<Users size={16} />} title="Pracownik">
                 <div className="flex flex-col gap-1.5">

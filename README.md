@@ -16,6 +16,7 @@ Generator stopek e-mail dla Nutri Partners. Pracownik wpisuje swoje dane (albo w
 - „Kopiuj stopkę” (do wklejenia w ustawieniach podpisu), „Kopiuj HTML”, „Pobierz .htm” (folder podpisów klasycznego Outlooka)
 - instrukcje dla Gmaila, Outlooka (nowy, web, klasyczny) i Apple Mail
 - dane z formularza zapamiętywane w przeglądarce
+- **zapisane stopki**: zapis wielu stopek pod własnymi nazwami, ponowne otwieranie do edycji („Zapisz zmiany” / „Zapisz jako nową”), usuwanie; eksport i import pliku `.json`, żeby przenieść stopki na inny komputer lub przeglądarkę (zapis jest lokalny, w `localStorage`)
 
 Stopka jest zbudowana na tabelach i stylach inline (bez SVG i webfontów), dzięki czemu wygląda tak samo w Gmailu, Outlooku i Apple Mail.
 
