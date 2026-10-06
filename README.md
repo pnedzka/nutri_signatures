@@ -1,12 +1,14 @@
 # nutri_signatures
 
+> Treść stopki (nagłówki, klauzula, nota eko, certyfikaty) jest po angielsku — Nutri Partners to firma międzynarodowa. Sam generator jest po polsku.
+
 Generator stopek e-mail dla Nutri Partners. Pracownik wpisuje swoje dane (albo wybiera się z listy), wybiera szablon i kopiuje gotową stopkę do Gmaila, Outlooka lub Apple Mail.
 
 ## Funkcje
 
 - 3 szablony: **Nowoczesna**, **Minimalistyczna**, **Baner**
 - ikony przy telefonie, e-mailu, stronie i adresie (albo litery — do wyboru)
-- odznaki certyfikatów (ISO 9001, Certyfikat EKO) w stopce — do wyłączenia przełącznikiem
+- odznaki certyfikatów (ISO 9001, Organic Certified) w stopce — do wyłączenia przełącznikiem
 - ikony social media (LinkedIn, Instagram, Facebook) pod danymi kontaktowymi; domyślnie profile firmy z `COMPANY_SOCIAL` w `src/lib/signature.ts`
 - logo w stopce prowadzi do nutripartners.co (`COMPANY_URL`)
 - zdjęcie pracownika, logo, kolor akcentu, nota ekologiczna, klauzula poufności
