@@ -229,6 +229,8 @@ function floatBlock(align: 'left' | 'right', content: string, padding: string): 
   );
 }
 
+const SOCIAL_HEADING = 'Obserwuj nas';
+
 const SOCIAL_NETWORKS = [
   { key: 'linkedin', label: 'LinkedIn' },
   { key: 'instagram', label: 'Instagram' },
@@ -250,7 +252,15 @@ function socialRow(data: SignatureData, accent: string): string {
         `</a></td>`
     )
     .join(`<td width="8" style="width:8px;font-size:0;line-height:0;">&nbsp;</td>`);
-  return `<table ${TABLE} style="border-collapse:collapse;"><tr>${cells}</tr></table>`;
+  // Company profiles, set apart from the employee's own contact details by a hairline and a small heading.
+  return (
+    `<table ${TABLE} width="100%" style="width:100%;border-collapse:collapse;"><tr>` +
+    `<td style="border-top:1px solid ${BORDER};padding-top:10px;">` +
+    `<table ${TABLE} style="border-collapse:collapse;"><tr>` +
+    `<td style="padding-right:12px;vertical-align:middle;font-family:${FONT};font-size:10px;line-height:14px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:${FAINT};white-space:nowrap;">${SOCIAL_HEADING}</td>` +
+    cells +
+    `</tr></table></td></tr></table>`
+  );
 }
 
 /** Darkens a #RRGGBB colour; used for badge circles that sit on an accent-coloured background. */
@@ -352,7 +362,7 @@ function modernTemplate(data: SignatureData): string {
       : '') +
     `<div style="margin:0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(subtitle(data))}</div>` +
     (contacts ? `<div style="margin:12px 0 0;">${contacts}</div>` : '') +
-    (social ? `<div style="margin:10px 0 0;">${social}</div>` : '') +
+    (social ? `<div style="margin:14px 0 0;">${social}</div>` : '') +
     `</td></tr>` +
     footer +
     `</table>`
@@ -394,7 +404,7 @@ function minimalTemplate(data: SignatureData): string {
     (data.address.trim()
       ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${MUTED};">${addressLinks(data.address.trim(), MUTED)}</td></tr>`
       : '') +
-    (social ? `<tr><td style="padding-top:8px;">${social}</td></tr>` : '') +
+    (social ? `<tr><td style="padding-top:12px;">${social}</td></tr>` : '') +
     (data.showLogo || data.showCerts
       ? `<tr><td style="padding-top:2px;">` +
         (data.showLogo ? floatBlock('left', logo(data, LOGO), '10px 14px 0 0') : '') +
@@ -437,7 +447,7 @@ function bannerTemplate(data: SignatureData): string {
     `</td>` +
     `</tr></table>` +
     (contacts ? `<div style="margin:14px 0 0;">${contacts}</div>` : '') +
-    (social ? `<div style="margin:10px 0 0;">${social}</div>` : '') +
+    (social ? `<div style="margin:14px 0 0;">${social}</div>` : '') +
     `</td></tr>` +
     `<tr><td bgcolor="${accent}" style="background-color:${accent};padding:12px 20px;border-radius:0 0 11px 11px;">` +
     floatBlock('left', `<span style="font-family:${FONT};font-size:12px;line-height:28px;color:#FFFFFF;">${barLeft}</span>`, '2px 12px 2px 0') +
