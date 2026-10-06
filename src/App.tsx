@@ -12,6 +12,7 @@ import {
   Phone,
   RotateCcw,
   Settings2,
+  Share2,
   Smartphone,
   TriangleAlert,
   User as UserIcon,
@@ -25,6 +26,8 @@ import { Toasts } from './components/Toasts';
 import { useToast } from './lib/toast';
 import {
   ACCENT_PRESETS,
+  COMPANY_SOCIAL,
+  CERTIFICATES,
   DEFAULT_DISCLAIMER,
   DEFAULT_WEBSITE,
   TEMPLATES,
@@ -48,7 +51,9 @@ function defaults(): SignatureData {
     mobile: '',
     email: '',
     website: DEFAULT_WEBSITE,
-    linkedin: '',
+    linkedin: COMPANY_SOCIAL.linkedin,
+    instagram: COMPANY_SOCIAL.instagram,
+    facebook: COMPANY_SOCIAL.facebook,
     address: '',
     photoUrl: '',
     template: 'modern',
@@ -58,6 +63,7 @@ function defaults(): SignatureData {
     disclaimer: DEFAULT_DISCLAIMER,
     showEco: false,
     showIcons: true,
+    showCerts: true,
     logoUrl: defaultLogoUrl(),
   };
 }
@@ -79,7 +85,7 @@ function employeeFields(e: Employee): Partial<SignatureData> {
     email: e.email,
     phone: e.phone ?? '',
     mobile: e.mobile ?? '',
-    linkedin: e.linkedin ?? '',
+    ...(e.linkedin ? { linkedin: e.linkedin } : {}),
     address: e.address ?? '',
     photoUrl: e.photoUrl ?? '',
   };
@@ -262,7 +268,9 @@ export default function App() {
   const localImage = [
     data.showLogo ? data.logoUrl : '',
     data.photoUrl,
-    data.showIcons ? window.location.origin : '',
+    data.showIcons || data.showCerts || data.linkedin || data.instagram || data.facebook
+      ? window.location.origin
+      : '',
   ].find((u) => u && isLocalUrl(u));
   const [photoFailed, setPhotoFailed] = useState<string | null>(null);
   const photoBroken = Boolean(data.photoUrl.trim()) && photoFailed === data.photoUrl;
@@ -421,16 +429,17 @@ export default function App() {
                 error={emailInvalid ? 'Nieprawidłowy adres e-mail' : undefined}
                 {...field('email')}
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input id="sig-website" label="Strona www" placeholder="nutripartners.co" {...field('website')} />
-                <Input
-                  id="sig-linkedin"
-                  label="LinkedIn (URL)"
-                  placeholder="linkedin.com/in/…"
-                  {...field('linkedin')}
-                />
-              </div>
+              <Input id="sig-website" label="Strona www" placeholder="nutripartners.co" {...field('website')} />
               <Input id="sig-address" label="Adres biura" placeholder="ul. Przykładowa 1, 20-000 Lublin" {...field('address')} />
+            </Section>
+
+            <Section icon={<Share2 size={16} />} title="Social media">
+              <Input id="sig-linkedin" label="LinkedIn" placeholder="linkedin.com/company/…" {...field('linkedin')} />
+              <Input id="sig-instagram" label="Instagram" placeholder="instagram.com/…" {...field('instagram')} />
+              <Input id="sig-facebook" label="Facebook" placeholder="facebook.com/…" {...field('facebook')} />
+              <p className="text-xs text-gray-500 -mt-2">
+                Ikony pojawiają się pod danymi kontaktowymi. Domyślnie profile firmy; puste pole = brak ikony.
+              </p>
             </Section>
 
             <Section icon={<Palette size={16} />} title="Wygląd">
@@ -509,6 +518,12 @@ export default function App() {
                 onChange={(v) => update({ showIcons: v })}
                 label="Ikony przy danych kontaktowych"
                 hint="Wyłączone: litery T / M / E / W / A"
+              />
+              <Switch
+                checked={data.showCerts}
+                onChange={(v) => update({ showCerts: v })}
+                label="Certyfikaty"
+                hint={CERTIFICATES.map((c) => c.label).join(' · ')}
               />
                 <Switch
                   checked={data.showEco}
