@@ -173,6 +173,11 @@ function contactLines(data: SignatureData): ContactLine[] {
   return lines;
 }
 
+/** Keeps Polish postcodes (e.g. 35-021) on one line; otherwise narrow screens break them at the hyphen. */
+function keepPostcode(escaped: string): string {
+  return escaped.replace(/\b(\d{2}-\d{3})\b/g, '<span style="white-space:nowrap;">$1</span>');
+}
+
 function link(text: string, href: string, color: string, extraStyle = ''): string {
   if (!href) return esc(text);
   return `<a href="${esc(href)}" style="color:${color};text-decoration:none;${extraStyle}">${esc(text)}</a>`;
@@ -181,12 +186,30 @@ function link(text: string, href: string, color: string, extraStyle = ''): strin
 function img(src: string, alt: string, width: number, height: number, extraStyle = ''): string {
   return (
     `<img src="${esc(src)}" alt="${esc(alt)}" width="${width}" height="${height}" ` +
-    `style="display:block;width:${width}px;height:${height}px;border:0;outline:none;text-decoration:none;${extraStyle}" />`
+    `style="display:block;width:${width}px;height:${height}px;max-width:none;border:0;outline:none;text-decoration:none;${extraStyle}" />`
   );
 }
 
 function photo(data: SignatureData, size: number): string {
   return img(toHttpUrl(data.photoUrl), data.fullName, size, size, 'border-radius:50%;object-fit:cover;');
+}
+
+/** Photo column that table layout cannot squeeze on narrow screens (the text column wraps instead). */
+function photoCell(data: SignatureData, size: number, gap: number, valign: 'top' | 'middle' = 'top'): string {
+  const w = size + gap;
+  return `<td width="${w}" style="width:${w}px;min-width:${w}px;padding:0 ${gap}px 0 0;vertical-align:${valign};">${photo(data, size)}</td>`;
+}
+
+/**
+ * Floated block (table align=left/right): sits side by side when there is room and wraps onto the next line on
+ * narrow phone screens. Works in Outlook desktop too, unlike inline-block.
+ */
+function floatBlock(align: 'left' | 'right', content: string, padding: string): string {
+  return (
+    `<table ${TABLE} align="${align}" style="border-collapse:collapse;"><tr>` +
+    `<td style="padding:${padding};vertical-align:middle;">${content}</td>` +
+    `</tr></table>`
+  );
 }
 
 const SOCIAL_NETWORKS = [
@@ -274,7 +297,7 @@ function contactTable(data: SignatureData, accent: string): string {
       (l) =>
         `<tr>` +
         `<td width="${(data.showIcons ? ICON_BADGE : 12) + 10}" style="padding:2px 10px 2px 0;vertical-align:middle;">${contactMarker(data, l, accent)}</td>` +
-        `<td style="padding:2px 0;font-family:${FONT};font-size:13px;line-height:18px;color:${BODY};vertical-align:middle;">${link(l.text, l.href, BODY)}</td>` +
+        `<td style="padding:2px 0;font-family:${FONT};font-size:13px;line-height:18px;color:${BODY};vertical-align:middle;">${l.href ? link(l.text, l.href, BODY) : keepPostcode(esc(l.text))}</td>` +
         `</tr>`
     )
     .join('');
@@ -295,16 +318,16 @@ function modernTemplate(data: SignatureData): string {
   const footer =
     data.showLogo || certs
       ? `<tr><td colspan="${hasPhoto ? 2 : 1}" style="padding-top:16px;">` +
-        `<table ${TABLE} width="100%" style="border-collapse:collapse;border-top:1px solid ${BORDER};"><tr>` +
-        `<td style="padding-top:10px;vertical-align:middle;">${data.showLogo ? logo(data, LOGO) : ''}</td>` +
-        `<td align="right" style="padding:10px 0 0 12px;vertical-align:middle;">${certs}</td>` +
-        `</tr></table></td></tr>`
+        `<table ${TABLE} width="100%" style="border-collapse:collapse;border-top:1px solid ${BORDER};"><tr><td>` +
+        (data.showLogo ? floatBlock('left', logo(data, LOGO), '10px 14px 0 0') : '') +
+        (certs ? floatBlock('left', certs, '10px 0 0 0') : '') +
+        `</td></tr></table></td></tr>`
       : '';
 
   return (
     `<table ${TABLE} style="border-collapse:collapse;font-family:${FONT};">` +
     `<tr>` +
-    (hasPhoto ? `<td style="padding:0 18px 0 0;vertical-align:top;">${photo(data, 84)}</td>` : '') +
+    (hasPhoto ? photoCell(data, 84, 18) : '') +
     `<td style="padding:0 0 0 16px;border-left:3px solid ${accent};vertical-align:top;">` +
     `<div style="margin:0;font-family:${FONT};font-size:18px;line-height:24px;font-weight:bold;color:${TEXT};">${esc(data.fullName)}</div>` +
     (data.position.trim()
@@ -324,16 +347,19 @@ function minimalTemplate(data: SignatureData): string {
   const inline = contactLines(data)
     .filter((l) => l.label !== 'A')
     .map((l) =>
-      data.showIcons
+      `<span style="white-space:nowrap;">` +
+      (data.showIcons
         ? // Inline badge: a table would force a line break, so the circle is a span (square in classic Outlook).
           `<span style="display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;background-color:${accent};border-radius:50%;vertical-align:middle;">` +
           `<img src="${esc(`${assetsBaseUrl()}/icons/${l.icon}.png`)}" alt="${l.label}" width="${ICON}" height="${ICON}" ` +
           `style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;vertical-align:middle;color:#FFFFFF;font-size:10px;font-weight:bold;" />` +
           `</span>&nbsp;` +
           link(l.text, l.href, BODY, 'vertical-align:middle;')
-        : `<span style="color:${accent};font-weight:bold;font-size:11px;">${l.label}</span>&nbsp;` + link(l.text, l.href, BODY)
+        : `<span style="color:${accent};font-weight:bold;font-size:11px;">${l.label}</span>&nbsp;` + link(l.text, l.href, BODY)) +
+      `</span>`
     )
-    .join(`<span style="color:${BORDER};">&nbsp;&nbsp;|&nbsp;&nbsp;</span>`);
+    // Plain spaces around the separator are the only line-break points, so an icon never ends up alone on a line.
+    .join(` <span style="color:${BORDER};">&nbsp;|&nbsp;</span> `);
   const meta = [data.position.trim(), subtitle(data)].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ');
   const social = socialRow(data, accent);
   const hasPhoto = Boolean(data.photoUrl.trim());
@@ -349,23 +375,21 @@ function minimalTemplate(data: SignatureData): string {
       ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${BODY};">${inline}</td></tr>`
       : '') +
     (data.address.trim()
-      ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${MUTED};">${esc(data.address.trim())}</td></tr>`
+      ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${MUTED};">${keepPostcode(esc(data.address.trim()))}</td></tr>`
       : '') +
     (social ? `<tr><td style="padding-top:8px;">${social}</td></tr>` : '') +
     (data.showLogo || data.showCerts
-      ? `<tr><td style="padding-top:12px;"><table ${TABLE} style="border-collapse:collapse;"><tr>` +
-        (data.showLogo
-          ? `<td style="vertical-align:middle;padding-right:14px;">${logo(data, LOGO)}</td>`
-          : '') +
-        (data.showCerts ? `<td style="vertical-align:middle;padding-right:14px;">${certBadges(data)}</td>` : '') +
-        `</tr></table></td></tr>`
+      ? `<tr><td style="padding-top:2px;">` +
+        (data.showLogo ? floatBlock('left', logo(data, LOGO), '10px 14px 0 0') : '') +
+        (data.showCerts ? floatBlock('left', certBadges(data), '10px 0 0 0') : '') +
+        `</td></tr>`
       : '') +
     `</table>`;
 
   if (!hasPhoto) return body;
   return (
     `<table ${TABLE} style="border-collapse:collapse;font-family:${FONT};"><tr>` +
-    `<td style="padding:0 16px 0 0;vertical-align:top;">${photo(data, 64)}</td>` +
+    photoCell(data, 64, 16) +
     `<td style="vertical-align:top;">${body}</td>` +
     `</tr></table>`
   );
@@ -384,8 +408,9 @@ function bannerTemplate(data: SignatureData): string {
   return (
     `<table ${TABLE} width="460" style="width:100%;max-width:460px;border-collapse:separate;border:1px solid ${BORDER};border-radius:12px;font-family:${FONT};">` +
     `<tr><td style="padding:18px 20px;">` +
-    `<table ${TABLE} width="100%" style="border-collapse:collapse;"><tr>` +
-    (hasPhoto ? `<td style="padding-right:14px;vertical-align:middle;">${photo(data, 60)}</td>` : '') +
+    (data.showLogo ? floatBlock('right', logo(data, LOGO), '0 0 10px 12px') : '') +
+    `<table ${TABLE} style="border-collapse:collapse;"><tr>` +
+    (hasPhoto ? photoCell(data, 60, 14, 'middle') : '') +
     `<td style="vertical-align:middle;">` +
     `<div style="margin:0;font-family:${FONT};font-size:18px;line-height:24px;font-weight:bold;color:${TEXT};">${esc(data.fullName)}</div>` +
     (data.position.trim()
@@ -393,16 +418,13 @@ function bannerTemplate(data: SignatureData): string {
       : '') +
     `<div style="margin:0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(subtitle(data))}</div>` +
     `</td>` +
-    (data.showLogo ? `<td align="right" style="padding-left:12px;vertical-align:top;">${logo(data, LOGO)}</td>` : '') +
     `</tr></table>` +
     (contacts ? `<div style="margin:14px 0 0;">${contacts}</div>` : '') +
     (social ? `<div style="margin:10px 0 0;">${social}</div>` : '') +
     `</td></tr>` +
     `<tr><td bgcolor="${accent}" style="background-color:${accent};padding:12px 20px;border-radius:0 0 11px 11px;">` +
-    `<table ${TABLE} width="100%" style="border-collapse:collapse;"><tr>` +
-    `<td style="vertical-align:middle;font-family:${FONT};font-size:12px;color:#FFFFFF;">${barLeft}</td>` +
-    `<td align="right" style="padding-left:12px;vertical-align:middle;">${certBadges(data, true)}</td>` +
-    `</tr></table>` +
+    floatBlock('left', `<span style="font-family:${FONT};font-size:12px;line-height:28px;color:#FFFFFF;">${barLeft}</span>`, '2px 12px 2px 0') +
+    (data.showCerts ? floatBlock('right', certBadges(data, true), '2px 0') : '') +
     `</td></tr>` +
     `</table>`
   );
