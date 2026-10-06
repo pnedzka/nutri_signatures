@@ -21,6 +21,7 @@ export interface SignatureData {
   showDisclaimer: boolean;
   disclaimer: string;
   showEco: boolean;
+  showIcons: boolean;
   logoUrl: string;
 }
 
@@ -56,7 +57,14 @@ export const TEMPLATES: { id: SignatureTemplate; name: string; description: stri
 export function defaultLogoUrl(): string {
   const fromEnv = import.meta.env.VITE_EMAIL_LOGO_URL as string | undefined;
   if (fromEnv) return fromEnv;
-  return typeof window !== 'undefined' ? `${window.location.origin}/logo.png` : '';
+  return `${assetsBaseUrl()}/logo.png`;
+}
+
+/** Public host of the images in /public (logo, contact icons). Defaults to wherever the generator runs. */
+function assetsBaseUrl(): string {
+  const fromEnv = import.meta.env.VITE_EMAIL_ASSETS_URL as string | undefined;
+  if (fromEnv) return fromEnv.replace(/\/+$/, '');
+  return typeof window !== 'undefined' ? window.location.origin : '';
 }
 
 export function isLocalUrl(url: string): boolean {
@@ -108,19 +116,24 @@ function subtitle(data: SignatureData): string {
   return [data.department.trim(), COMPANY_NAME].filter(Boolean).join(' · ');
 }
 
+type ContactIcon = 'phone' | 'mobile' | 'email' | 'web' | 'address';
+
 interface ContactLine {
   label: string;
+  icon: ContactIcon;
   text: string;
   href: string;
 }
 
 function contactLines(data: SignatureData): ContactLine[] {
   const lines: ContactLine[] = [];
-  if (data.phone.trim()) lines.push({ label: 'T', text: data.phone.trim(), href: telHref(data.phone) });
-  if (data.mobile.trim()) lines.push({ label: 'M', text: data.mobile.trim(), href: telHref(data.mobile) });
-  if (data.email.trim()) lines.push({ label: 'E', text: data.email.trim(), href: `mailto:${data.email.trim()}` });
-  if (data.website.trim()) lines.push({ label: 'W', text: displayUrl(data.website), href: toHttpUrl(data.website) });
-  if (data.address.trim()) lines.push({ label: 'A', text: data.address.trim(), href: '' });
+  if (data.phone.trim()) lines.push({ label: 'T', icon: 'phone', text: data.phone.trim(), href: telHref(data.phone) });
+  if (data.mobile.trim()) lines.push({ label: 'M', icon: 'mobile', text: data.mobile.trim(), href: telHref(data.mobile) });
+  if (data.email.trim())
+    lines.push({ label: 'E', icon: 'email', text: data.email.trim(), href: `mailto:${data.email.trim()}` });
+  if (data.website.trim())
+    lines.push({ label: 'W', icon: 'web', text: displayUrl(data.website), href: toHttpUrl(data.website) });
+  if (data.address.trim()) lines.push({ label: 'A', icon: 'address', text: data.address.trim(), href: '' });
   return lines;
 }
 
@@ -149,13 +162,36 @@ function linkedinBadge(data: SignatureData, background: string, color: string): 
   );
 }
 
+// White 12×12 px glyph (native size = display size, see LOGO) on a circle in the accent colour, so one icon set
+// fits every accent. If images are blocked, the alt text shows the letter inside the circle instead.
+const ICON = 12;
+const ICON_BADGE = 20;
+
+function iconBadge(l: ContactLine, accent: string): string {
+  const img =
+    `<img src="${esc(`${assetsBaseUrl()}/icons/${l.icon}.png`)}" alt="${l.label}" width="${ICON}" height="${ICON}" ` +
+    `style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;outline:none;vertical-align:middle;` +
+    `color:#FFFFFF;font-family:${FONT};font-size:10px;font-weight:bold;" />`;
+  return (
+    `<table ${TABLE} width="${ICON_BADGE}" style="width:${ICON_BADGE}px;border-collapse:collapse;"><tr>` +
+    `<td width="${ICON_BADGE}" height="${ICON_BADGE}" align="center" valign="middle" bgcolor="${accent}" ` +
+    `style="width:${ICON_BADGE}px;height:${ICON_BADGE}px;background-color:${accent};border-radius:50%;text-align:center;vertical-align:middle;line-height:${ICON_BADGE}px;font-size:0;">` +
+    `${img}</td></tr></table>`
+  );
+}
+
+function contactMarker(data: SignatureData, l: ContactLine, accent: string): string {
+  if (data.showIcons) return iconBadge(l, accent);
+  return `<span style="font-family:${FONT};font-size:11px;line-height:18px;font-weight:bold;color:${accent};">${l.label}</span>`;
+}
+
 function contactTable(data: SignatureData, accent: string): string {
   const rows = contactLines(data)
     .map(
       (l) =>
         `<tr>` +
-        `<td style="padding:2px 10px 2px 0;font-family:${FONT};font-size:11px;line-height:18px;font-weight:bold;color:${accent};vertical-align:top;">${l.label}</td>` +
-        `<td style="padding:2px 0;font-family:${FONT};font-size:13px;line-height:18px;color:${BODY};">${link(l.text, l.href, BODY)}</td>` +
+        `<td width="${(data.showIcons ? ICON_BADGE : 12) + 10}" style="padding:2px 10px 2px 0;vertical-align:middle;">${contactMarker(data, l, accent)}</td>` +
+        `<td style="padding:2px 0;font-family:${FONT};font-size:13px;line-height:18px;color:${BODY};vertical-align:middle;">${link(l.text, l.href, BODY)}</td>` +
         `</tr>`
     )
     .join('');
@@ -202,10 +238,15 @@ function minimalTemplate(data: SignatureData): string {
   const accent = data.accent;
   const inline = contactLines(data)
     .filter((l) => l.label !== 'A')
-    .map(
-      (l) =>
-        `<span style="color:${accent};font-weight:bold;font-size:11px;">${l.label}</span>&nbsp;` +
-        link(l.text, l.href, BODY)
+    .map((l) =>
+      data.showIcons
+        ? // Inline badge: a table would force a line break, so the circle is a span (square in classic Outlook).
+          `<span style="display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;background-color:${accent};border-radius:50%;vertical-align:middle;">` +
+          `<img src="${esc(`${assetsBaseUrl()}/icons/${l.icon}.png`)}" alt="${l.label}" width="${ICON}" height="${ICON}" ` +
+          `style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;vertical-align:middle;color:#FFFFFF;font-size:10px;font-weight:bold;" />` +
+          `</span>&nbsp;` +
+          link(l.text, l.href, BODY, 'vertical-align:middle;')
+        : `<span style="color:${accent};font-weight:bold;font-size:11px;">${l.label}</span>&nbsp;` + link(l.text, l.href, BODY)
     )
     .join(`<span style="color:${BORDER};">&nbsp;&nbsp;|&nbsp;&nbsp;</span>`);
   const meta = [data.position.trim(), subtitle(data)].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ');

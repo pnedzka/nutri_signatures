@@ -57,6 +57,7 @@ function defaults(): SignatureData {
     showDisclaimer: true,
     disclaimer: DEFAULT_DISCLAIMER,
     showEco: false,
+    showIcons: true,
     logoUrl: defaultLogoUrl(),
   };
 }
@@ -258,7 +259,11 @@ export default function App() {
   const previewHtml = useMemo(() => buildSignatureHtml(previewData), [previewData]);
   const selectedEmployee = EMPLOYEES.findIndex((e) => e.email.toLowerCase() === data.email.trim().toLowerCase());
 
-  const localImage = [data.showLogo ? data.logoUrl : '', data.photoUrl].find((u) => u && isLocalUrl(u));
+  const localImage = [
+    data.showLogo ? data.logoUrl : '',
+    data.photoUrl,
+    data.showIcons ? window.location.origin : '',
+  ].find((u) => u && isLocalUrl(u));
   const [photoFailed, setPhotoFailed] = useState<string | null>(null);
   const photoBroken = Boolean(data.photoUrl.trim()) && photoFailed === data.photoUrl;
   const emailInvalid = data.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim());
@@ -499,6 +504,12 @@ export default function App() {
 
               <div className="space-y-3 pt-1">
                 <Switch checked={data.showLogo} onChange={(v) => update({ showLogo: v })} label="Logo Nutri Partners" />
+              <Switch
+                checked={data.showIcons}
+                onChange={(v) => update({ showIcons: v })}
+                label="Ikony przy danych kontaktowych"
+                hint="Wyłączone: litery T / M / E / W / A"
+              />
                 <Switch
                   checked={data.showEco}
                   onChange={(v) => update({ showEco: v })}
