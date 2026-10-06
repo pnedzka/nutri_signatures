@@ -142,7 +142,7 @@ function telHref(phone: string): string {
 
 function logo(data: SignatureData, size: { width: number; height: number }): string {
   return (
-    `<a href="${COMPANY_URL}" style="display:inline-block;text-decoration:none;border:0;">` +
+    `<a href="${COMPANY_URL}" ${NEW_TAB} style="display:inline-block;text-decoration:none;border:0;">` +
     img(toHttpUrl(data.logoUrl || defaultLogoUrl()), COMPANY_NAME, size.width, size.height) +
     `</a>`
   );
@@ -178,9 +178,34 @@ function keepPostcode(escaped: string): string {
   return escaped.replace(/\b(\d{2}-\d{3})\b/g, '<span style="white-space:nowrap;">$1</span>');
 }
 
+/** Web links open in a new tab/window; mailto: and tel: are left alone. */
+const NEW_TAB = 'target="_blank" rel="noopener noreferrer"';
+
+function anchorAttrs(href: string): string {
+  return `href="${esc(href)}"${/^https?:/i.test(href) ? ` ${NEW_TAB}` : ''}`;
+}
+
 function link(text: string, href: string, color: string, extraStyle = ''): string {
   if (!href) return esc(text);
-  return `<a href="${esc(href)}" style="color:${color};text-decoration:none;${extraStyle}">${esc(text)}</a>`;
+  return `<a ${anchorAttrs(href)} style="color:${color};text-decoration:none;${extraStyle}">${esc(text)}</a>`;
+}
+
+// One map link cannot open "the default maps app" everywhere. Google Maps works on every device (app on Android/iOS
+// when installed, browser otherwise); Apple Maps is offered as a small extra link for iPhone/Mac users.
+function googleMapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
+function appleMapsUrl(address: string): string {
+  return `https://maps.apple.com/?q=${encodeURIComponent(address)}`;
+}
+
+/** Address linked to Google Maps, followed by a small Apple Maps link. */
+function addressLinks(address: string, color: string): string {
+  return (
+    `<a ${anchorAttrs(googleMapsUrl(address))} style="color:${color};text-decoration:none;">${keepPostcode(esc(address))}</a>` +
+    ` <a ${anchorAttrs(appleMapsUrl(address))} style="color:${FAINT};text-decoration:none;font-size:11px;white-space:nowrap;">·&nbsp;Apple&nbsp;Maps</a>`
+  );
 }
 
 function img(src: string, alt: string, width: number, height: number, extraStyle = ''): string {
@@ -227,7 +252,7 @@ function socialRow(data: SignatureData, accent: string): string {
       (n) =>
         `<td width="${ICON_BADGE}" height="${ICON_BADGE}" align="center" valign="middle" bgcolor="${accent}" ` +
         `style="width:${ICON_BADGE}px;height:${ICON_BADGE}px;background-color:${accent};border-radius:50%;text-align:center;vertical-align:middle;line-height:${ICON_BADGE}px;font-size:0;">` +
-        `<a href="${esc(toHttpUrl(data[n.key]))}" title="${n.label}" style="display:inline-block;text-decoration:none;line-height:0;">` +
+        `<a ${anchorAttrs(toHttpUrl(data[n.key]))} title="${n.label}" style="display:inline-block;text-decoration:none;line-height:0;">` +
         `<img src="${esc(`${assetsBaseUrl()}/icons/${n.key}.png`)}" alt="${n.label.slice(0, 2)}" width="${ICON}" height="${ICON}" ` +
         `style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;outline:none;vertical-align:middle;color:#FFFFFF;font-family:${FONT};font-size:8px;font-weight:bold;" />` +
         `</a></td>`
@@ -261,7 +286,7 @@ function certBadges(data: SignatureData, onColor = false): string {
       `<td style="padding:3px 10px 3px 6px;font-family:${FONT};font-size:11px;line-height:14px;font-weight:bold;color:${text};white-space:nowrap;">${esc(c.label)}</td>` +
       `</tr></table>`;
     return c.href
-      ? `<a href="${esc(toHttpUrl(c.href))}" style="text-decoration:none;color:${text};">${pill}</a>`
+      ? `<a ${anchorAttrs(toHttpUrl(c.href))} style="text-decoration:none;color:${text};">${pill}</a>`
       : pill;
   });
   const cells = pills.map((p) => `<td style="vertical-align:middle;">${p}</td>`).join(`<td style="width:6px;font-size:0;">&nbsp;</td>`);
@@ -297,7 +322,7 @@ function contactTable(data: SignatureData, accent: string): string {
       (l) =>
         `<tr>` +
         `<td width="${(data.showIcons ? ICON_BADGE : 12) + 10}" style="padding:2px 10px 2px 0;vertical-align:middle;">${contactMarker(data, l, accent)}</td>` +
-        `<td style="padding:2px 0;font-family:${FONT};font-size:13px;line-height:18px;color:${BODY};vertical-align:middle;">${l.href ? link(l.text, l.href, BODY) : keepPostcode(esc(l.text))}</td>` +
+        `<td style="padding:2px 0;font-family:${FONT};font-size:13px;line-height:18px;color:${BODY};vertical-align:middle;">${l.icon === 'address' ? addressLinks(l.text, BODY) : link(l.text, l.href, BODY)}</td>` +
         `</tr>`
     )
     .join('');
@@ -375,7 +400,7 @@ function minimalTemplate(data: SignatureData): string {
       ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${BODY};">${inline}</td></tr>`
       : '') +
     (data.address.trim()
-      ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${MUTED};">${keepPostcode(esc(data.address.trim()))}</td></tr>`
+      ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${MUTED};">${addressLinks(data.address.trim(), MUTED)}</td></tr>`
       : '') +
     (social ? `<tr><td style="padding-top:8px;">${social}</td></tr>` : '') +
     (data.showLogo || data.showCerts
