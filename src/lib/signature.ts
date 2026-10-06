@@ -1,6 +1,7 @@
 // Email signature generator.
 // Output must survive Gmail, Outlook (incl. classic desktop/Word engine) and Apple Mail,
 // so everything is table-based with inline styles, web-safe fonts and PNG images only (no SVG).
+// Texts that end up in the signature are English (Nutri Partners is an international company); the generator UI is Polish.
 
 export type SignatureTemplate = 'modern' | 'minimal' | 'banner';
 
@@ -43,9 +44,9 @@ export const COMPANY_SOCIAL = {
 };
 
 export const DEFAULT_DISCLAIMER =
-  'Ta wiadomość wraz z załącznikami może zawierać informacje poufne, przeznaczone wyłącznie dla adresata. ' +
-  'Jeżeli nie jesteś zamierzonym odbiorcą, prosimy o niezwłoczne powiadomienie nadawcy i usunięcie wiadomości. ' +
-  'Wszelkie rozpowszechnianie, kopiowanie lub wykorzystywanie jej treści jest zabronione.';
+  'This message and any attachments may contain confidential information intended solely for the addressee. ' +
+  'If you are not the intended recipient, please notify the sender immediately and delete this message. ' +
+  'Any disclosure, copying or use of its contents is prohibited.';
 
 /**
  * Company certificates shown as small badges ("pills") in the signature footer.
@@ -59,14 +60,14 @@ export const CERTIFICATES: { label: string; icon: string; color: string | null; 
     href: 'https://nutripartners.co/wp-content/uploads/2026/01/ISO-CERT.pdf',
   },
   {
-    label: 'Certyfikat EKO',
+    label: 'Organic Certified',
     icon: 'leaf',
     color: '#2F7D4F',
     href: 'https://nutripartners.co/wp-content/uploads/2026/01/eko-CERT.pdf',
   },
 ];
 
-export const ECO_NOTE = 'Pomyśl o środowisku, zanim wydrukujesz tę wiadomość.';
+export const ECO_NOTE = 'Please consider the environment before printing this email.';
 
 export const ACCENT_PRESETS = [
   { name: 'Bordo Nutri', value: '#A50029' },
@@ -229,7 +230,7 @@ function floatBlock(align: 'left' | 'right', content: string, padding: string): 
   );
 }
 
-const SOCIAL_HEADING = 'Obserwuj nas';
+const SOCIAL_HEADING = 'Follow us';
 
 const SOCIAL_NETWORKS = [
   { key: 'linkedin', label: 'LinkedIn' },
@@ -490,9 +491,9 @@ export function buildSignatureHtml(data: SignatureData): string {
 /** Standalone document (e.g. for Outlook's %APPDATA%\Microsoft\Signatures folder). */
 export function buildSignatureDocument(data: SignatureData): string {
   return (
-    `<!DOCTYPE html>\n<html lang="pl">\n<head>\n<meta charset="utf-8" />\n` +
+    `<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8" />\n` +
     `<meta name="viewport" content="width=device-width, initial-scale=1" />\n` +
-    `<title>Stopka e-mail – ${esc(data.fullName)}</title>\n</head>\n<body style="margin:0;padding:16px;background:#FFFFFF;">\n` +
+    `<title>Email signature – ${esc(data.fullName)}</title>\n</head>\n<body style="margin:0;padding:16px;background:#FFFFFF;">\n` +
     `${buildSignatureHtml(data)}\n</body>\n</html>\n`
   );
 }
@@ -506,7 +507,7 @@ export function buildSignatureText(data: SignatureData): string {
   ].filter(Boolean);
   for (const l of contactLines(data)) lines.push(`${l.label}: ${l.text}`);
   for (const n of SOCIAL_NETWORKS) if (data[n.key].trim()) lines.push(`${n.label}: ${toHttpUrl(data[n.key])}`);
-  if (data.showCerts && CERTIFICATES.length) lines.push(`Certyfikaty: ${CERTIFICATES.map((c) => c.label).join(', ')}`);
+  if (data.showCerts && CERTIFICATES.length) lines.push(`Certificates: ${CERTIFICATES.map((c) => c.label).join(', ')}`);
   if (data.showEco) lines.push('', ECO_NOTE);
   if (data.showDisclaimer && data.disclaimer.trim()) lines.push('', data.disclaimer.trim());
   return ['--', ...lines].join('\n');
@@ -521,5 +522,5 @@ export function signatureFileName(data: SignatureData): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-  return `stopka-nutri-partners${slug ? `-${slug}` : ''}.htm`;
+  return `email-signature-nutri-partners${slug ? `-${slug}` : ''}.htm`;
 }

@@ -72,7 +72,7 @@ function defaults(): SignatureData {
 const SAMPLE: Partial<SignatureData> = {
   fullName: 'Jan Kowalski',
   position: 'Key Account Manager',
-  department: 'Sprzedaż',
+  department: 'Sales',
   phone: '+48 500 000 000',
   email: 'j.kowalski@nutripartners.co',
 };
@@ -383,8 +383,11 @@ export default function App() {
               <Input id="sig-name" label="Imię i nazwisko" placeholder="Jan Kowalski" {...field('fullName')} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input id="sig-position" label="Stanowisko" placeholder="Key Account Manager" {...field('position')} />
-                <Input id="sig-department" label="Dział" placeholder="Sprzedaż" {...field('department')} />
+                <Input id="sig-department" label="Dział" placeholder="Sales" {...field('department')} />
               </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                Stopka jest po angielsku: stanowisko, dział i adres wpisz po angielsku (np. „Sales”, „…, Poland”).
+              </p>
               <div className="flex items-end gap-3">
                 <div
                   className="w-[46px] h-[46px] rounded-full bg-gray-100 border border-gray-200 shrink-0 overflow-hidden flex items-center justify-center"
@@ -430,7 +433,7 @@ export default function App() {
                 {...field('email')}
               />
               <Input id="sig-website" label="Strona www" placeholder="nutripartners.co" {...field('website')} />
-              <Input id="sig-address" label="Adres biura" placeholder="ul. Przykładowa 1, 20-000 Lublin" {...field('address')} />
+              <Input id="sig-address" label="Adres biura" placeholder="Prof. Ludwika Chmaja 6, 35-021 Rzeszów, Poland" {...field('address')} />
             </Section>
 
             <Section icon={<Share2 size={16} />} title="Social media">
@@ -592,20 +595,20 @@ export default function App() {
                 >
                   <div className="px-5 py-3 border-b border-gray-100 space-y-1 text-xs">
                     <p className="text-gray-500">
-                      <span className="inline-block w-12 text-gray-400">Od:</span>
+                      <span className="inline-block w-16 text-gray-400">From:</span>
                       <span className="text-gray-900 font-medium">{previewData.fullName}</span>{' '}
                       {previewData.email && <span className="text-gray-500">&lt;{previewData.email}&gt;</span>}
                     </p>
                     <p className="text-gray-500">
-                      <span className="inline-block w-12 text-gray-400">Temat:</span>
-                      <span className="text-gray-900">Propozycja współpracy</span>
+                      <span className="inline-block w-16 text-gray-400">Subject:</span>
+                      <span className="text-gray-900">Cooperation proposal</span>
                     </p>
                   </div>
                   <div className="px-5 py-5 overflow-x-auto">
                     <div className="text-sm text-gray-700 space-y-3 mb-6">
-                      <p>Dzień dobry,</p>
-                      <p>w nawiązaniu do naszej rozmowy przesyłam szczegóły oferty w załączniku.</p>
-                      <p>Z poważaniem,</p>
+                      <p>Dear Mr Smith,</p>
+                      <p>following our conversation, please find the details of our offer attached.</p>
+                      <p>Kind regards,</p>
                     </div>
                     <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                   </div>
