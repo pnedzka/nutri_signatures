@@ -13,6 +13,8 @@ export interface SignatureData {
   email: string;
   website: string;
   linkedin: string;
+  instagram: string;
+  facebook: string;
   address: string;
   photoUrl: string;
   template: SignatureTemplate;
@@ -30,6 +32,16 @@ export const COMPANY_NAME = 'Nutri Partners';
 
 export const DEFAULT_WEBSITE = 'nutripartners.co';
 
+/** The logo links here. */
+export const COMPANY_URL = 'https://nutripartners.co';
+
+/** Company profiles used as defaults for the social media icons (from nutripartners.co). Empty = icon hidden. */
+export const COMPANY_SOCIAL = {
+  linkedin: 'https://www.linkedin.com/company/106882083',
+  instagram: 'https://www.instagram.com/nutripartners.co/',
+  facebook: '',
+};
+
 export const DEFAULT_DISCLAIMER =
   'Ta wiadomość wraz z załącznikami może zawierać informacje poufne, przeznaczone wyłącznie dla adresata. ' +
   'Jeżeli nie jesteś zamierzonym odbiorcą, prosimy o niezwłoczne powiadomienie nadawcy i usunięcie wiadomości. ' +
@@ -46,7 +58,12 @@ export const CERTIFICATES: { label: string; icon: string; color: string | null; 
     color: null,
     href: 'https://nutripartners.co/wp-content/uploads/2026/01/ISO-CERT.pdf',
   },
-  { label: 'Certyfikat EKO', icon: 'leaf', color: '#2F7D4F' },
+  {
+    label: 'Certyfikat EKO',
+    icon: 'leaf',
+    color: '#2F7D4F',
+    href: 'https://nutripartners.co/wp-content/uploads/2026/01/eko-CERT.pdf',
+  },
 ];
 
 export const ECO_NOTE = 'Pomyśl o środowisku, zanim wydrukujesz tę wiadomość.';
@@ -124,7 +141,11 @@ function telHref(phone: string): string {
 }
 
 function logo(data: SignatureData, size: { width: number; height: number }): string {
-  return img(toHttpUrl(data.logoUrl || defaultLogoUrl()), COMPANY_NAME, size.width, size.height);
+  return (
+    `<a href="${COMPANY_URL}" style="display:inline-block;text-decoration:none;border:0;">` +
+    img(toHttpUrl(data.logoUrl || defaultLogoUrl()), COMPANY_NAME, size.width, size.height) +
+    `</a>`
+  );
 }
 
 function subtitle(data: SignatureData): string {
@@ -168,13 +189,28 @@ function photo(data: SignatureData, size: number): string {
   return img(toHttpUrl(data.photoUrl), data.fullName, size, size, 'border-radius:50%;object-fit:cover;');
 }
 
-function linkedinBadge(data: SignatureData, background: string, color: string): string {
-  if (!data.linkedin.trim()) return '';
-  return (
-    `<a href="${esc(toHttpUrl(data.linkedin))}" title="LinkedIn" style="display:inline-block;width:22px;height:22px;` +
-    `line-height:22px;text-align:center;background-color:${background};color:${color};border-radius:5px;` +
-    `font-family:${FONT};font-size:12px;font-weight:bold;text-decoration:none;">in</a>`
-  );
+const SOCIAL_NETWORKS = [
+  { key: 'linkedin', label: 'LinkedIn' },
+  { key: 'instagram', label: 'Instagram' },
+  { key: 'facebook', label: 'Facebook' },
+] as const;
+
+/** Row of linked social icons (same white glyph in an accent circle as the contact icons). */
+function socialRow(data: SignatureData, accent: string): string {
+  const items = SOCIAL_NETWORKS.filter((n) => data[n.key].trim());
+  if (!items.length) return '';
+  const cells = items
+    .map(
+      (n) =>
+        `<td width="${ICON_BADGE}" height="${ICON_BADGE}" align="center" valign="middle" bgcolor="${accent}" ` +
+        `style="width:${ICON_BADGE}px;height:${ICON_BADGE}px;background-color:${accent};border-radius:50%;text-align:center;vertical-align:middle;line-height:${ICON_BADGE}px;font-size:0;">` +
+        `<a href="${esc(toHttpUrl(data[n.key]))}" title="${n.label}" style="display:inline-block;text-decoration:none;line-height:0;">` +
+        `<img src="${esc(`${assetsBaseUrl()}/icons/${n.key}.png`)}" alt="${n.label.slice(0, 2)}" width="${ICON}" height="${ICON}" ` +
+        `style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;outline:none;vertical-align:middle;color:#FFFFFF;font-family:${FONT};font-size:8px;font-weight:bold;" />` +
+        `</a></td>`
+    )
+    .join(`<td width="8" style="width:8px;font-size:0;line-height:0;">&nbsp;</td>`);
+  return `<table ${TABLE} style="border-collapse:collapse;"><tr>${cells}</tr></table>`;
 }
 
 /** Darkens a #RRGGBB colour; used for badge circles that sit on an accent-coloured background. */
@@ -207,10 +243,6 @@ function certBadges(data: SignatureData, onColor = false): string {
   });
   const cells = pills.map((p) => `<td style="vertical-align:middle;">${p}</td>`).join(`<td style="width:6px;font-size:0;">&nbsp;</td>`);
   return `<table ${TABLE} style="border-collapse:collapse;display:inline-table;vertical-align:middle;"><tr>${cells}</tr></table>`;
-}
-
-function joinRight(...parts: string[]): string {
-  return parts.filter(Boolean).join('&nbsp;&nbsp;&nbsp;');
 }
 
 // White 12×12 px glyph (native size = display size, see LOGO) on a circle in the accent colour, so one icon set
@@ -258,14 +290,14 @@ function modernTemplate(data: SignatureData): string {
   const accent = data.accent;
   const hasPhoto = Boolean(data.photoUrl.trim());
   const contacts = contactTable(data, accent);
-  const badge = linkedinBadge(data, accent, '#FFFFFF');
+  const social = socialRow(data, accent);
   const certs = certBadges(data);
   const footer =
-    data.showLogo || badge || certs
+    data.showLogo || certs
       ? `<tr><td colspan="${hasPhoto ? 2 : 1}" style="padding-top:16px;">` +
         `<table ${TABLE} width="100%" style="border-collapse:collapse;border-top:1px solid ${BORDER};"><tr>` +
         `<td style="padding-top:10px;vertical-align:middle;">${data.showLogo ? logo(data, LOGO) : ''}</td>` +
-        `<td align="right" style="padding:10px 0 0 12px;vertical-align:middle;">${joinRight(certs, badge)}</td>` +
+        `<td align="right" style="padding:10px 0 0 12px;vertical-align:middle;">${certs}</td>` +
         `</tr></table></td></tr>`
       : '';
 
@@ -280,6 +312,7 @@ function modernTemplate(data: SignatureData): string {
       : '') +
     `<div style="margin:0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(subtitle(data))}</div>` +
     (contacts ? `<div style="margin:12px 0 0;">${contacts}</div>` : '') +
+    (social ? `<div style="margin:10px 0 0;">${social}</div>` : '') +
     `</td></tr>` +
     footer +
     `</table>`
@@ -302,6 +335,7 @@ function minimalTemplate(data: SignatureData): string {
     )
     .join(`<span style="color:${BORDER};">&nbsp;&nbsp;|&nbsp;&nbsp;</span>`);
   const meta = [data.position.trim(), subtitle(data)].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ');
+  const social = socialRow(data, accent);
   const hasPhoto = Boolean(data.photoUrl.trim());
 
   const body =
@@ -317,15 +351,13 @@ function minimalTemplate(data: SignatureData): string {
     (data.address.trim()
       ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${MUTED};">${esc(data.address.trim())}</td></tr>`
       : '') +
-    (data.showLogo || data.linkedin.trim() || data.showCerts
+    (social ? `<tr><td style="padding-top:8px;">${social}</td></tr>` : '') +
+    (data.showLogo || data.showCerts
       ? `<tr><td style="padding-top:12px;"><table ${TABLE} style="border-collapse:collapse;"><tr>` +
         (data.showLogo
           ? `<td style="vertical-align:middle;padding-right:14px;">${logo(data, LOGO)}</td>`
           : '') +
         (data.showCerts ? `<td style="vertical-align:middle;padding-right:14px;">${certBadges(data)}</td>` : '') +
-        (data.linkedin.trim()
-          ? `<td style="vertical-align:middle;">${linkedinBadge(data, '#F3F4F6', accent)}</td>`
-          : '') +
         `</tr></table></td></tr>`
       : '') +
     `</table>`;
@@ -346,7 +378,7 @@ function bannerTemplate(data: SignatureData): string {
   const website = data.website.trim()
     ? link(displayUrl(data.website), toHttpUrl(data.website), '#FFFFFF', 'font-weight:bold;')
     : '';
-  const badge = data.linkedin.trim() ? linkedinBadge(data, '#FFFFFF', accent) : '';
+  const social = socialRow(data, accent);
   const barLeft = website || `<span style="font-family:${FONT};font-size:13px;font-weight:bold;color:#FFFFFF;">${COMPANY_NAME}</span>`;
 
   return (
@@ -364,11 +396,12 @@ function bannerTemplate(data: SignatureData): string {
     (data.showLogo ? `<td align="right" style="padding-left:12px;vertical-align:top;">${logo(data, LOGO)}</td>` : '') +
     `</tr></table>` +
     (contacts ? `<div style="margin:14px 0 0;">${contacts}</div>` : '') +
+    (social ? `<div style="margin:10px 0 0;">${social}</div>` : '') +
     `</td></tr>` +
     `<tr><td bgcolor="${accent}" style="background-color:${accent};padding:12px 20px;border-radius:0 0 11px 11px;">` +
     `<table ${TABLE} width="100%" style="border-collapse:collapse;"><tr>` +
     `<td style="vertical-align:middle;font-family:${FONT};font-size:12px;color:#FFFFFF;">${barLeft}</td>` +
-    `<td align="right" style="padding-left:12px;vertical-align:middle;">${joinRight(certBadges(data, true), badge)}</td>` +
+    `<td align="right" style="padding-left:12px;vertical-align:middle;">${certBadges(data, true)}</td>` +
     `</tr></table>` +
     `</td></tr>` +
     `</table>`
@@ -423,7 +456,7 @@ export function buildSignatureText(data: SignatureData): string {
     COMPANY_NAME,
   ].filter(Boolean);
   for (const l of contactLines(data)) lines.push(`${l.label}: ${l.text}`);
-  if (data.linkedin.trim()) lines.push(`LinkedIn: ${toHttpUrl(data.linkedin)}`);
+  for (const n of SOCIAL_NETWORKS) if (data[n.key].trim()) lines.push(`${n.label}: ${toHttpUrl(data[n.key])}`);
   if (data.showCerts && CERTIFICATES.length) lines.push(`Certyfikaty: ${CERTIFICATES.map((c) => c.label).join(', ')}`);
   if (data.showEco) lines.push('', ECO_NOTE);
   if (data.showDisclaimer && data.disclaimer.trim()) lines.push('', data.disclaimer.trim());

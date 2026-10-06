@@ -7,6 +7,8 @@ Generator stopek e-mail dla Nutri Partners. Pracownik wpisuje swoje dane (albo w
 - 3 szablony: **Nowoczesna**, **Minimalistyczna**, **Baner**
 - ikony przy telefonie, e-mailu, stronie i adresie (albo litery — do wyboru)
 - odznaki certyfikatów (ISO 9001, Certyfikat EKO) w stopce — do wyłączenia przełącznikiem
+- ikony social media (LinkedIn, Instagram, Facebook) pod danymi kontaktowymi; domyślnie profile firmy z `COMPANY_SOCIAL` w `src/lib/signature.ts`
+- logo w stopce prowadzi do nutripartners.co (`COMPANY_URL`)
 - zdjęcie pracownika, logo, kolor akcentu, nota ekologiczna, klauzula poufności
 - podgląd w makiecie maila (komputer / telefon)
 - „Kopiuj stopkę” (do wklejenia w ustawieniach podpisu), „Kopiuj HTML”, „Pobierz .htm” (folder podpisów klasycznego Outlooka)
