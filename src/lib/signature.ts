@@ -190,22 +190,14 @@ function link(text: string, href: string, color: string, extraStyle = ''): strin
   return `<a ${anchorAttrs(href)} style="color:${color};text-decoration:none;${extraStyle}">${esc(text)}</a>`;
 }
 
-// One map link cannot open "the default maps app" everywhere. Google Maps works on every device (app on Android/iOS
-// when installed, browser otherwise); Apple Maps is offered as a small extra link for iPhone/Mac users.
+// Google Maps works on every device: the app on Android/iOS when installed, the browser otherwise.
 function googleMapsUrl(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
-function appleMapsUrl(address: string): string {
-  return `https://maps.apple.com/?q=${encodeURIComponent(address)}`;
-}
-
-/** Address linked to Google Maps, followed by a small Apple Maps link. */
+/** Address linked to Google Maps. */
 function addressLinks(address: string, color: string): string {
-  return (
-    `<a ${anchorAttrs(googleMapsUrl(address))} style="color:${color};text-decoration:none;">${keepPostcode(esc(address))}</a>` +
-    ` <a ${anchorAttrs(appleMapsUrl(address))} style="color:${FAINT};text-decoration:none;font-size:11px;white-space:nowrap;">·&nbsp;Apple&nbsp;Maps</a>`
-  );
+  return `<a ${anchorAttrs(googleMapsUrl(address))} style="color:${color};text-decoration:none;">${keepPostcode(esc(address))}</a>`;
 }
 
 function img(src: string, alt: string, width: number, height: number, extraStyle = ''): string {
