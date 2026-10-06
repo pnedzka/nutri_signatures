@@ -22,6 +22,7 @@ export interface SignatureData {
   disclaimer: string;
   showEco: boolean;
   showIcons: boolean;
+  showCerts: boolean;
   logoUrl: string;
 }
 
@@ -33,6 +34,15 @@ export const DEFAULT_DISCLAIMER =
   'Ta wiadomość wraz z załącznikami może zawierać informacje poufne, przeznaczone wyłącznie dla adresata. ' +
   'Jeżeli nie jesteś zamierzonym odbiorcą, prosimy o niezwłoczne powiadomienie nadawcy i usunięcie wiadomości. ' +
   'Wszelkie rozpowszechnianie, kopiowanie lub wykorzystywanie jej treści jest zabronione.';
+
+/**
+ * Company certificates shown as small badges ("pills") in the signature footer.
+ * href: optional link, e.g. to the certificate PDF on nutripartners.co. color: null = accent colour.
+ */
+export const CERTIFICATES: { label: string; icon: string; color: string | null; href?: string }[] = [
+  { label: 'ISO 9001', icon: 'quality', color: null },
+  { label: 'Certyfikat EKO', icon: 'leaf', color: '#2F7D4F' },
+];
 
 export const ECO_NOTE = 'Pomyśl o środowisku, zanim wydrukujesz tę wiadomość.';
 
@@ -162,6 +172,42 @@ function linkedinBadge(data: SignatureData, background: string, color: string): 
   );
 }
 
+/** Darkens a #RRGGBB colour; used for badge circles that sit on an accent-coloured background. */
+function darken(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = (shift: number) => Math.round(((n >> shift) & 255) * (1 - amount));
+  return `#${[16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, '0')).join('')}`.toUpperCase();
+}
+
+/** Certificate pills; onColor = drawn on the accent bar (Baner), with a white outline and text. */
+function certBadges(data: SignatureData, onColor = false): string {
+  if (!data.showCerts || CERTIFICATES.length === 0) return '';
+  const pills = CERTIFICATES.map((c) => {
+    const circle = c.color ?? (onColor ? darken(data.accent, 0.3) : data.accent);
+    const text = onColor ? '#FFFFFF' : BODY;
+    const pill =
+      `<table ${TABLE} style="border-collapse:separate;border:1px solid ${onColor ? '#FFFFFF' : BORDER};border-radius:999px;${onColor ? '' : 'background-color:#FFFFFF;'}"><tr>` +
+      `<td style="padding:3px 0 3px 3px;">` +
+      `<table ${TABLE} width="18" style="width:18px;border-collapse:collapse;"><tr>` +
+      `<td width="18" height="18" align="center" valign="middle" bgcolor="${circle}" style="width:18px;height:18px;background-color:${circle};border-radius:50%;text-align:center;vertical-align:middle;line-height:18px;font-size:0;">` +
+      `<img src="${esc(`${assetsBaseUrl()}/icons/${c.icon}.png`)}" alt="" width="${ICON}" height="${ICON}" style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;outline:none;vertical-align:middle;" />` +
+      `</td></tr></table></td>` +
+      `<td style="padding:3px 10px 3px 6px;font-family:${FONT};font-size:11px;line-height:14px;font-weight:bold;color:${text};white-space:nowrap;">${esc(c.label)}</td>` +
+      `</tr></table>`;
+    return c.href
+      ? `<a href="${esc(toHttpUrl(c.href))}" style="text-decoration:none;color:${text};">${pill}</a>`
+      : pill;
+  });
+  const cells = pills.map((p) => `<td style="vertical-align:middle;">${p}</td>`).join(`<td style="width:6px;font-size:0;">&nbsp;</td>`);
+  return `<table ${TABLE} style="border-collapse:collapse;display:inline-table;vertical-align:middle;"><tr>${cells}</tr></table>`;
+}
+
+function joinRight(...parts: string[]): string {
+  return parts.filter(Boolean).join('&nbsp;&nbsp;&nbsp;');
+}
+
 // White 12×12 px glyph (native size = display size, see LOGO) on a circle in the accent colour, so one icon set
 // fits every accent. If images are blocked, the alt text shows the letter inside the circle instead.
 const ICON = 12;
@@ -208,12 +254,13 @@ function modernTemplate(data: SignatureData): string {
   const hasPhoto = Boolean(data.photoUrl.trim());
   const contacts = contactTable(data, accent);
   const badge = linkedinBadge(data, accent, '#FFFFFF');
+  const certs = certBadges(data);
   const footer =
-    data.showLogo || badge
+    data.showLogo || badge || certs
       ? `<tr><td colspan="${hasPhoto ? 2 : 1}" style="padding-top:16px;">` +
         `<table ${TABLE} width="100%" style="border-collapse:collapse;border-top:1px solid ${BORDER};"><tr>` +
         `<td style="padding-top:10px;vertical-align:middle;">${data.showLogo ? logo(data, LOGO) : ''}</td>` +
-        `<td align="right" style="padding:10px 0 0 12px;vertical-align:middle;">${badge}</td>` +
+        `<td align="right" style="padding:10px 0 0 12px;vertical-align:middle;">${joinRight(certs, badge)}</td>` +
         `</tr></table></td></tr>`
       : '';
 
@@ -265,11 +312,12 @@ function minimalTemplate(data: SignatureData): string {
     (data.address.trim()
       ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${MUTED};">${esc(data.address.trim())}</td></tr>`
       : '') +
-    (data.showLogo || data.linkedin.trim()
+    (data.showLogo || data.linkedin.trim() || data.showCerts
       ? `<tr><td style="padding-top:12px;"><table ${TABLE} style="border-collapse:collapse;"><tr>` +
         (data.showLogo
           ? `<td style="vertical-align:middle;padding-right:14px;">${logo(data, LOGO)}</td>`
           : '') +
+        (data.showCerts ? `<td style="vertical-align:middle;padding-right:14px;">${certBadges(data)}</td>` : '') +
         (data.linkedin.trim()
           ? `<td style="vertical-align:middle;">${linkedinBadge(data, '#F3F4F6', accent)}</td>`
           : '') +
@@ -315,7 +363,7 @@ function bannerTemplate(data: SignatureData): string {
     `<tr><td bgcolor="${accent}" style="background-color:${accent};padding:12px 20px;border-radius:0 0 11px 11px;">` +
     `<table ${TABLE} width="100%" style="border-collapse:collapse;"><tr>` +
     `<td style="vertical-align:middle;font-family:${FONT};font-size:12px;color:#FFFFFF;">${barLeft}</td>` +
-    `<td align="right" style="padding-left:12px;vertical-align:middle;">${badge}</td>` +
+    `<td align="right" style="padding-left:12px;vertical-align:middle;">${joinRight(certBadges(data, true), badge)}</td>` +
     `</tr></table>` +
     `</td></tr>` +
     `</table>`
@@ -371,6 +419,7 @@ export function buildSignatureText(data: SignatureData): string {
   ].filter(Boolean);
   for (const l of contactLines(data)) lines.push(`${l.label}: ${l.text}`);
   if (data.linkedin.trim()) lines.push(`LinkedIn: ${toHttpUrl(data.linkedin)}`);
+  if (data.showCerts && CERTIFICATES.length) lines.push(`Certyfikaty: ${CERTIFICATES.map((c) => c.label).join(', ')}`);
   if (data.showEco) lines.push('', ECO_NOTE);
   if (data.showDisclaimer && data.disclaimer.trim()) lines.push('', data.disclaimer.trim());
   return ['--', ...lines].join('\n');

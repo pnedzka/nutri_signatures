@@ -25,6 +25,7 @@ import { Toasts } from './components/Toasts';
 import { useToast } from './lib/toast';
 import {
   ACCENT_PRESETS,
+  CERTIFICATES,
   DEFAULT_DISCLAIMER,
   DEFAULT_WEBSITE,
   TEMPLATES,
@@ -58,6 +59,7 @@ function defaults(): SignatureData {
     disclaimer: DEFAULT_DISCLAIMER,
     showEco: false,
     showIcons: true,
+    showCerts: true,
     logoUrl: defaultLogoUrl(),
   };
 }
@@ -262,7 +264,7 @@ export default function App() {
   const localImage = [
     data.showLogo ? data.logoUrl : '',
     data.photoUrl,
-    data.showIcons ? window.location.origin : '',
+    data.showIcons || data.showCerts ? window.location.origin : '',
   ].find((u) => u && isLocalUrl(u));
   const [photoFailed, setPhotoFailed] = useState<string | null>(null);
   const photoBroken = Boolean(data.photoUrl.trim()) && photoFailed === data.photoUrl;
@@ -509,6 +511,12 @@ export default function App() {
                 onChange={(v) => update({ showIcons: v })}
                 label="Ikony przy danych kontaktowych"
                 hint="Wyłączone: litery T / M / E / W / A"
+              />
+              <Switch
+                checked={data.showCerts}
+                onChange={(v) => update({ showCerts: v })}
+                label="Certyfikaty"
+                hint={CERTIFICATES.map((c) => c.label).join(' · ')}
               />
                 <Switch
                   checked={data.showEco}

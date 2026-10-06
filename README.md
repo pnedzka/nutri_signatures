@@ -6,6 +6,7 @@ Generator stopek e-mail dla Nutri Partners. Pracownik wpisuje swoje dane (albo w
 
 - 3 szablony: **Nowoczesna**, **Minimalistyczna**, **Baner**
 - ikony przy telefonie, e-mailu, stronie i adresie (albo litery — do wyboru)
+- odznaki certyfikatów (ISO 9001, Certyfikat EKO) w stopce — do wyłączenia przełącznikiem
 - zdjęcie pracownika, logo, kolor akcentu, nota ekologiczna, klauzula poufności
 - podgląd w makiecie maila (komputer / telefon)
 - „Kopiuj stopkę” (do wklejenia w ustawieniach podpisu), „Kopiuj HTML”, „Pobierz .htm” (folder podpisów klasycznego Outlooka)
@@ -30,6 +31,16 @@ Plik `src/lib/employees.ts`. Każdy wpis to jedna osoba:
 ```
 
 Gdy lista nie jest pusta, na górze formularza pojawia się pole „Pracownik” — wybranie osoby wypełnia dane i zdjęcie.
+
+## Certyfikaty
+
+Lista odznak jest w `CERTIFICATES` w `src/lib/signature.ts` (nazwa, ikona, kolor kółka, opcjonalny link). Żeby odznaka była klikalna, dopisz `href`, np. link do PDF certyfikatu na nutripartners.co:
+
+```ts
+{ label: 'ISO 9001', icon: 'quality', color: null, href: 'https://nutripartners.co/.../iso-9001.pdf' },
+```
+
+To własne, neutralne odznaki w stylu Nutri Partners — nie oficjalne znaki (unijny „Euroliść”, znaki jednostek certyfikujących ISO), które mają własne zasady używania.
 
 ## Grafiki (logo i zdjęcia)
 
