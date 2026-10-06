@@ -40,7 +40,12 @@ export const DEFAULT_DISCLAIMER =
  * href: optional link, e.g. to the certificate PDF on nutripartners.co. color: null = accent colour.
  */
 export const CERTIFICATES: { label: string; icon: string; color: string | null; href?: string }[] = [
-  { label: 'ISO 9001', icon: 'quality', color: null },
+  {
+    label: 'ISO 9001',
+    icon: 'quality',
+    color: null,
+    href: 'https://nutripartners.co/wp-content/uploads/2026/01/ISO-CERT.pdf',
+  },
   { label: 'Certyfikat EKO', icon: 'leaf', color: '#2F7D4F' },
 ];
 
