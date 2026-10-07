@@ -83,8 +83,9 @@ export const TEMPLATES: { id: SignatureTemplate; name: string; description: stri
 ];
 
 /**
- * Logo cropped to exactly its display size (public/logo.png, 150×29 px). Some clients (notably Outlook)
- * drop width/height on replies and forwards; a larger file would then blow up to its native size.
+ * Logo at 2× its display size (public/logo.png, 300×58 px shown as 150×29) so it stays sharp on Retina screens.
+ * The file is tagged 192 DPI: Outlook desktop sizes images by DPI when it drops width/height on replies and
+ * forwards, so it still lands at 150×29 there. Keep any replacement at 2× and 192 DPI.
  * Override with VITE_EMAIL_LOGO_URL to load the same file from another public host.
  */
 export function defaultLogoUrl(): string {
@@ -117,7 +118,7 @@ const BODY = '#374151';
 const MUTED = '#6B7280'; // 4.8:1 on white, the lightest grey used for text (WCAG AA)
 const BORDER = '#E5E7EB';
 
-// Must match the native pixel size of public/logo.png (see defaultLogoUrl).
+// Display size; public/logo.png is exactly twice this (see defaultLogoUrl).
 const LOGO = { width: 150, height: 29 };
 
 /** cellpadding/cellspacing="0" also replace border-collapse:collapse. */
@@ -158,7 +159,7 @@ function img(src: string, alt: string, width: number, height: number, extraStyle
   return `<img src="${esc(src)}" alt="${esc(alt)}" width="${width}" height="${height}" style="display:block;max-width:none;border:0;${extraStyle}">`;
 }
 
-/** 12×12 white glyph from /public/icons; alt text (white, small) shows instead when images are blocked. */
+/** White glyph from /public/icons (24×24 file shown at 12×12); alt text (white, small) shows instead when images are blocked. */
 function iconImg(name: string, alt: string, layout = 'vertical-align:middle;'): string {
   return (
     `<img src="${esc(`${assetsBaseUrl()}/icons/${name}.png`)}" alt="${alt}" width="${ICON}" height="${ICON}" ` +
@@ -305,7 +306,7 @@ function certBadges(data: SignatureData, onColor = false): string {
   return `<table ${TABLE}><tr>${cells}</tr></table>`;
 }
 
-// White 12×12 px glyph (native size = display size, see LOGO) on a circle in the accent colour, so one icon set
+// White glyph (2× file shown at 12×12 px, 192 DPI like the logo) on a circle in the accent colour, so one icon set
 // fits every accent. If images are blocked, the alt text shows the letter inside the circle instead.
 const ICON = 12;
 const ICON_BADGE = 20;

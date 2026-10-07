@@ -569,8 +569,8 @@ export default function App() {
             <Section icon={<Settings2 size={16} />} title="Zaawansowane">
               <Input id="sig-logo" label="Logo (link)" placeholder="https://…/email/logo.png" {...field('logoUrl')} />
               <p className="text-xs text-gray-500 -mt-2">
-                Plik musi mieć dokładnie 150×29 px, inaczej w odpowiedziach na maile logo może się wyświetlić w pełnym
-                rozmiarze. Link musi być publiczny, aby odbiorcy widzieli grafikę.
+                Plik powinien mieć 300×58 px i 192 DPI (wyświetla się jako 150×29, ostro na ekranach Retina) — większy
+                może się rozjechać w odpowiedziach na maile. Link musi być publiczny, aby odbiorcy widzieli grafikę.
               </p>
             </Section>
           </div>

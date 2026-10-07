@@ -51,9 +51,9 @@ To własne, neutralne odznaki w stylu Nutri Partners — nie oficjalne znaki (un
 
 Odbiorca pobiera grafiki z sieci przy otwarciu maila, więc linki muszą być **publiczne**.
 
-- **Logo** — `public/logo.png`, dokładnie 150×29 px. Rozmiar pliku = rozmiar w stopce, bo Outlook i część innych programów gubią wymiary obrazka w odpowiedziach i przekazanych mailach (większy plik rozjechałby się do pełnego rozmiaru). Domyślnie ładowane z adresu, pod którym działa generator (`https://<adres>/logo.png`). Inny adres: zmienna środowiskowa `VITE_EMAIL_LOGO_URL`.
+- **Logo** — `public/logo.png`, 300×58 px (2×) z metadanymi 192 DPI, wyświetlane jako 150×29 px. Podwójna rozdzielczość daje ostre logo na ekranach Retina; 192 DPI sprawia, że Outlook, który w odpowiedziach i przekazanych mailach gubi wymiary obrazka, nadal pokazuje je jako 150×29. Nie wstawiaj większego pliku — rozjechałby się w odpowiedziach. Domyślnie ładowane z adresu, pod którym działa generator (`https://<adres>/logo.png`). Inny adres: zmienna środowiskowa `VITE_EMAIL_LOGO_URL`.
 - **Zdjęcia** — kwadratowe, najlepiej 84×84 px, z tego samego powodu.
-- **Ikony kontaktowe** — `public/icons/*.png` (telefon, komórka, e-mail, www, adres), białe, 12×12 px, wstawiane w koło w kolorze akcentu, więc jeden zestaw pasuje do każdego koloru. Gdy program pocztowy blokuje obrazki, w kole widać literę (T / M / E / W / A). Ikony można wyłączyć w generatorze („Ikony przy danych kontaktowych”).
+- **Ikony kontaktowe** — `public/icons/*.png` (telefon, komórka, e-mail, www, adres), białe, pliki 24×24 px (192 DPI) wyświetlane jako 12×12 px, wstawiane w koło w kolorze akcentu, więc jeden zestaw pasuje do każdego koloru. Gdy program pocztowy blokuje obrazki, w kole widać literę (T / M / E / W / A). Ikony można wyłączyć w generatorze („Ikony przy danych kontaktowych”).
 - Logo i ikony ładują się domyślnie z adresu, pod którym działa generator. Inny host dla wszystkich grafik: `VITE_EMAIL_ASSETS_URL` (np. `https://nutri-signatures.vercel.app`); samo logo: `VITE_EMAIL_LOGO_URL`.
 
 ## Uruchomienie lokalne
