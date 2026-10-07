@@ -83,8 +83,9 @@ export const TEMPLATES: { id: SignatureTemplate; name: string; description: stri
 ];
 
 /**
- * Logo cropped to exactly its display size (public/logo.png, 150×29 px). Some clients (notably Outlook)
- * drop width/height on replies and forwards; a larger file would then blow up to its native size.
+ * Logo at 2× its display size (public/logo.png, 300×58 px shown as 150×29) so it stays sharp on Retina screens.
+ * The file is tagged 192 DPI: Outlook desktop sizes images by DPI when it drops width/height on replies and
+ * forwards, so it still lands at 150×29 there. Keep any replacement at 2× and 192 DPI.
  * Override with VITE_EMAIL_LOGO_URL to load the same file from another public host.
  */
 export function defaultLogoUrl(): string {
@@ -93,10 +94,27 @@ export function defaultLogoUrl(): string {
   return `${assetsBaseUrl()}/logo.png`;
 }
 
-/** Public host of the images in /public (logo, contact icons). Defaults to wherever the generator runs. */
-function assetsBaseUrl(): string {
+/** Production address of the generator; its /public images are what signatures link to. */
+export const PRODUCTION_URL = 'https://nutri-signatures.vercel.app';
+
+/**
+ * Vercel preview deployments (other *.vercel.app hosts) sit behind Vercel Authentication, so mail clients cannot
+ * load images from them; signatures copied there would also break once the preview is gone.
+ */
+export function isPreviewHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host.endsWith('.vercel.app') && `https://${host}` !== PRODUCTION_URL;
+}
+
+/**
+ * Public host of the images in /public (logo, contact icons): VITE_EMAIL_ASSETS_URL, else the production
+ * generator when running on a preview deployment, else wherever the generator runs.
+ */
+export function assetsBaseUrl(): string {
   const fromEnv = import.meta.env.VITE_EMAIL_ASSETS_URL as string | undefined;
   if (fromEnv) return fromEnv.replace(/\/+$/, '');
+  if (isPreviewHost()) return PRODUCTION_URL;
   return typeof window !== 'undefined' ? window.location.origin : '';
 }
 
@@ -117,7 +135,7 @@ const BODY = '#374151';
 const MUTED = '#6B7280'; // 4.8:1 on white, the lightest grey used for text (WCAG AA)
 const BORDER = '#E5E7EB';
 
-// Must match the native pixel size of public/logo.png (see defaultLogoUrl).
+// Display size; public/logo.png is exactly twice this (see defaultLogoUrl).
 const LOGO = { width: 150, height: 29 };
 
 /** cellpadding/cellspacing="0" also replace border-collapse:collapse. */
@@ -158,7 +176,7 @@ function img(src: string, alt: string, width: number, height: number, extraStyle
   return `<img src="${esc(src)}" alt="${esc(alt)}" width="${width}" height="${height}" style="display:block;max-width:none;border:0;${extraStyle}">`;
 }
 
-/** 12×12 white glyph from /public/icons; alt text (white, small) shows instead when images are blocked. */
+/** White glyph from /public/icons (24×24 file shown at 12×12); alt text (white, small) shows instead when images are blocked. */
 function iconImg(name: string, alt: string, layout = 'vertical-align:middle;'): string {
   return (
     `<img src="${esc(`${assetsBaseUrl()}/icons/${name}.png`)}" alt="${alt}" width="${ICON}" height="${ICON}" ` +
@@ -244,6 +262,14 @@ function floatBlock(align: 'left' | 'right', content: string, padding: string): 
   return `<table ${TABLE} align="${align}"><tr><td style="padding:${padding};">${content}</td></tr></table>`;
 }
 
+/**
+ * Outer width of every template: 500 px on desktop, so the logo and certificates sit side by side instead of
+ * wrapping inside a shrink-to-fit table, but never wider than the screen. Outlook desktop ignores max-width and
+ * keeps the fixed 500 px, which is fine there; width:100% would stretch it across the whole reading pane.
+ */
+const WIDTH = 500;
+const BOX = `width="${WIDTH}" style="width:${WIDTH}px;max-width:100%;`;
+
 /** One table row per block: the Outlook-safe way to stack content with vertical spacing. */
 function rows(items: (string | false | null | undefined)[]): string {
   return items.filter(Boolean).map((r) => `<tr>${r}</tr>`).join('');
@@ -294,18 +320,20 @@ function certBadges(data: SignatureData, onColor = false): string {
   const cells = CERTIFICATES.map((c, i) => {
     const fill = c.color ?? (onColor ? darken(data.accent, 0.3) : data.accent);
     const text = onColor ? '#FFFFFF' : BODY;
+    // Links sit inside the cells: Apple Mail rewrites an <a> wrapped around a table into bare, blue links.
+    const href = c.href ? toHttpUrl(c.href) : '';
+    const linked = (inner: string) => (href && !inner.startsWith('<a ') ? `<a ${anchorAttrs(href)}>${inner}</a>` : inner);
     const pill =
       `<table ${TABLE} style="border-collapse:separate;border:1px solid ${onColor ? '#FFFFFF' : BORDER};border-radius:999px;"${onColor ? '' : ' bgcolor="#FFFFFF"'}><tr>` +
-      `<td style="padding:3px 0 3px 3px;">${circle(18, fill, iconImg(c.icon, ''))}</td>` +
-      `<td style="${textStyle(11, 14, text, 'padding:3px 10px 3px 6px;font-weight:bold;white-space:nowrap;')}">${esc(c.label)}</td>` +
+      `<td style="padding:3px 0 3px 3px;">${circle(18, fill, linked(iconImg(c.icon, '')))}</td>` +
+      `<td style="${textStyle(11, 14, text, 'padding:3px 10px 3px 6px;font-weight:bold;white-space:nowrap;')}">${linked(link(c.label, href, text))}</td>` +
       `</tr></table>`;
-    const content = c.href ? `<a ${anchorAttrs(toHttpUrl(c.href))} style="text-decoration:none;">${pill}</a>` : pill;
-    return `<td${i ? ' style="padding-left:6px;"' : ''}>${content}</td>`;
+    return `<td${i ? ' style="padding-left:6px;"' : ''}>${pill}</td>`;
   }).join('');
   return `<table ${TABLE}><tr>${cells}</tr></table>`;
 }
 
-// White 12×12 px glyph (native size = display size, see LOGO) on a circle in the accent colour, so one icon set
+// White glyph (2× file shown at 12×12 px, 192 DPI like the logo) on a circle in the accent colour, so one icon set
 // fits every accent. If images are blocked, the alt text shows the letter inside the circle instead.
 const ICON = 12;
 const ICON_BADGE = 20;
@@ -359,7 +387,7 @@ function modernTemplate(data: SignatureData): string {
       : '';
 
   return (
-    `<table ${TABLE}><tr>` +
+    `<table ${TABLE} ${BOX}"><tr>` +
     (hasPhoto ? photoCell(data, 84, 18) : '') +
     `<td valign="top" style="padding-left:16px;border-left:3px solid ${accent};">` +
     `<table ${TABLE}>` +
@@ -397,7 +425,7 @@ function minimalTemplate(data: SignatureData): string {
   const hasPhoto = Boolean(data.photoUrl.trim());
 
   const body =
-    `<table ${TABLE}>` +
+    `<table ${TABLE}${hasPhoto ? '' : ` ${BOX}"`}>` +
     rows([
       `<td style="${textStyle(16, 22, TEXT, 'font-weight:bold;')}">${esc(data.fullName)}</td>`,
       `<td style="${textStyle(12, 18, MUTED)}">${meta}</td>`,
@@ -414,7 +442,7 @@ function minimalTemplate(data: SignatureData): string {
     `</table>`;
 
   if (!hasPhoto) return body;
-  return `<table ${TABLE}><tr>${photoCell(data, 64, 16)}<td valign="top">${body}</td></tr></table>`;
+  return `<table ${TABLE} ${BOX}"><tr>${photoCell(data, 64, 16)}<td valign="top">${body}</td></tr></table>`;
 }
 
 function bannerTemplate(data: SignatureData): string {
@@ -427,7 +455,7 @@ function bannerTemplate(data: SignatureData): string {
   const social = socialRow(data, accent);
 
   return (
-    `<table ${TABLE} width="460" style="width:100%;max-width:460px;border-collapse:separate;border:1px solid ${BORDER};border-radius:12px;">` +
+    `<table ${TABLE} ${BOX}border-collapse:separate;border:1px solid ${BORDER};border-radius:12px;">` +
     `<tr><td style="padding:18px 20px;">` +
     (data.showLogo ? floatBlock('right', logo(data, LOGO), '0 0 10px 12px') : '') +
     `<table ${TABLE}><tr>` +
@@ -462,7 +490,7 @@ function extras(data: SignatureData): string {
     );
   }
   if (!items.length) return '';
-  return `<table ${TABLE} width="460" style="width:100%;max-width:460px;">${rows(items)}</table>`;
+  return `<table ${TABLE} ${BOX}">${rows(items)}</table>`;
 }
 
 const TEMPLATE_RENDERERS: Record<SignatureTemplate, (data: SignatureData) => string> = {
