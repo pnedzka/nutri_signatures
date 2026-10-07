@@ -105,16 +105,23 @@ export function isLocalUrl(url: string): boolean {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
+//
+// Size budget: Gmail rejects signatures over 10,000 characters of HTML (Outlook.com has the same limit, older
+// Exchange/OWA about 8,000), so markup is kept lean: no role/rel attributes, no CSS that only repeats an HTML
+// attribute, spacing via table cells (Outlook desktop ignores margin on most elements) and short style strings.
+// Outlook desktop does not inherit font-family into tables, so every text cell sets it again.
 
-const FONT = 'Arial, Helvetica, sans-serif';
+const FONT = 'Arial,Helvetica,sans-serif';
 const TEXT = '#111827';
 const BODY = '#374151';
-const MUTED = '#6B7280';
-const FAINT = '#9CA3AF';
+const MUTED = '#6B7280'; // 4.8:1 on white, the lightest grey used for text (WCAG AA)
 const BORDER = '#E5E7EB';
 
 // Must match the native pixel size of public/logo.png (see defaultLogoUrl).
 const LOGO = { width: 150, height: 29 };
+
+/** cellpadding/cellspacing="0" also replace border-collapse:collapse. */
+const TABLE = 'cellpadding="0" cellspacing="0" border="0"';
 
 function esc(value: string): string {
   return value
@@ -141,12 +148,34 @@ function telHref(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }
 
-function logo(data: SignatureData, size: { width: number; height: number }): string {
+/** Text cell: font settings repeated per cell for Outlook desktop. */
+function textStyle(size: number, lineHeight: number, color: string, extra = ''): string {
+  return `font-family:${FONT};font-size:${size}px;line-height:${lineHeight}px;color:${color};${extra}`;
+}
+
+function img(src: string, alt: string, width: number, height: number, extraStyle = ''): string {
+  // max-width:none: some apps force img{max-width:100%}, which would squeeze the logo/photo in narrow cells.
+  return `<img src="${esc(src)}" alt="${esc(alt)}" width="${width}" height="${height}" style="display:block;max-width:none;border:0;${extraStyle}">`;
+}
+
+/** 12×12 white glyph from /public/icons; alt text (white, small) shows instead when images are blocked. */
+function iconImg(name: string, alt: string, layout = 'vertical-align:middle;'): string {
   return (
-    `<a href="${COMPANY_URL}" ${NEW_TAB} style="display:inline-block;text-decoration:none;border:0;">` +
-    img(toHttpUrl(data.logoUrl || defaultLogoUrl()), COMPANY_NAME, size.width, size.height) +
-    `</a>`
+    `<img src="${esc(`${assetsBaseUrl()}/icons/${name}.png`)}" alt="${alt}" width="${ICON}" height="${ICON}" ` +
+    `style="border:0;${layout}color:#FFFFFF;font-size:9px;">`
   );
+}
+
+/** Fixed-size coloured circle (square in classic Outlook, which has no border-radius). */
+function circle(size: number, color: string, content: string): string {
+  return (
+    `<table ${TABLE}><tr><td width="${size}" height="${size}" align="center" bgcolor="${color}" ` +
+    `style="border-radius:50%;line-height:0;">${content}</td></tr></table>`
+  );
+}
+
+function logo(data: SignatureData, size: { width: number; height: number }): string {
+  return `<a href="${COMPANY_URL}" target="_blank">${img(toHttpUrl(data.logoUrl || defaultLogoUrl()), COMPANY_NAME, size.width, size.height)}</a>`;
 }
 
 function subtitle(data: SignatureData): string {
@@ -170,7 +199,8 @@ function contactLines(data: SignatureData): ContactLine[] {
     lines.push({ label: 'E', icon: 'email', text: data.email.trim(), href: `mailto:${data.email.trim()}` });
   if (data.website.trim())
     lines.push({ label: 'W', icon: 'web', text: displayUrl(data.website), href: toHttpUrl(data.website) });
-  if (data.address.trim()) lines.push({ label: 'A', icon: 'address', text: data.address.trim(), href: '' });
+  if (data.address.trim())
+    lines.push({ label: 'A', icon: 'address', text: data.address.trim(), href: googleMapsUrl(data.address.trim()) });
   return lines;
 }
 
@@ -179,16 +209,15 @@ function keepPostcode(escaped: string): string {
   return escaped.replace(/\b(\d{2}-\d{3})\b/g, '<span style="white-space:nowrap;">$1</span>');
 }
 
-/** Web links open in a new tab/window; mailto: and tel: are left alone. */
-const NEW_TAB = 'target="_blank" rel="noopener noreferrer"';
-
+/** Web links open in a new tab/window (mail clients add their own rel=noopener); mailto: and tel: are left alone. */
 function anchorAttrs(href: string): string {
-  return `href="${esc(href)}"${/^https?:/i.test(href) ? ` ${NEW_TAB}` : ''}`;
+  return `href="${esc(href)}"${/^https?:/i.test(href) ? ' target="_blank"' : ''}`;
 }
 
 function link(text: string, href: string, color: string, extraStyle = ''): string {
-  if (!href) return esc(text);
-  return `<a ${anchorAttrs(href)} style="color:${color};text-decoration:none;${extraStyle}">${esc(text)}</a>`;
+  const label = keepPostcode(esc(text));
+  if (!href) return label;
+  return `<a ${anchorAttrs(href)} style="color:${color};text-decoration:none;${extraStyle}">${label}</a>`;
 }
 
 // Google Maps works on every device: the app on Android/iOS when installed, the browser otherwise.
@@ -196,26 +225,15 @@ function googleMapsUrl(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
-/** Address linked to Google Maps. */
-function addressLinks(address: string, color: string): string {
-  return `<a ${anchorAttrs(googleMapsUrl(address))} style="color:${color};text-decoration:none;">${keepPostcode(esc(address))}</a>`;
-}
-
-function img(src: string, alt: string, width: number, height: number, extraStyle = ''): string {
-  return (
-    `<img src="${esc(src)}" alt="${esc(alt)}" width="${width}" height="${height}" ` +
-    `style="display:block;width:${width}px;height:${height}px;max-width:none;border:0;outline:none;text-decoration:none;${extraStyle}" />`
-  );
-}
-
 function photo(data: SignatureData, size: number): string {
-  return img(toHttpUrl(data.photoUrl), data.fullName, size, size, 'border-radius:50%;object-fit:cover;');
+  // Explicit CSS size + object-fit keep non-square photos round and undistorted.
+  return img(toHttpUrl(data.photoUrl), data.fullName, size, size, `width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;`);
 }
 
 /** Photo column that table layout cannot squeeze on narrow screens (the text column wraps instead). */
 function photoCell(data: SignatureData, size: number, gap: number, valign: 'top' | 'middle' = 'top'): string {
   const w = size + gap;
-  return `<td width="${w}" style="width:${w}px;min-width:${w}px;padding:0 ${gap}px 0 0;vertical-align:${valign};">${photo(data, size)}</td>`;
+  return `<td width="${w}" valign="${valign}" style="min-width:${w}px;padding-right:${gap}px;">${photo(data, size)}</td>`;
 }
 
 /**
@@ -223,11 +241,12 @@ function photoCell(data: SignatureData, size: number, gap: number, valign: 'top'
  * narrow phone screens. Works in Outlook desktop too, unlike inline-block.
  */
 function floatBlock(align: 'left' | 'right', content: string, padding: string): string {
-  return (
-    `<table ${TABLE} align="${align}" style="border-collapse:collapse;"><tr>` +
-    `<td style="padding:${padding};vertical-align:middle;">${content}</td>` +
-    `</tr></table>`
-  );
+  return `<table ${TABLE} align="${align}"><tr><td style="padding:${padding};">${content}</td></tr></table>`;
+}
+
+/** One table row per block: the Outlook-safe way to stack content with vertical spacing. */
+function rows(items: (string | false | null | undefined)[]): string {
+  return items.filter(Boolean).map((r) => `<tr>${r}</tr>`).join('');
 }
 
 const SOCIAL_HEADING = 'Follow us';
@@ -245,20 +264,16 @@ function socialRow(data: SignatureData, accent: string): string {
   const cells = items
     .map(
       (n) =>
-        `<td width="${ICON_BADGE}" height="${ICON_BADGE}" align="center" valign="middle" bgcolor="${accent}" ` +
-        `style="width:${ICON_BADGE}px;height:${ICON_BADGE}px;background-color:${accent};border-radius:50%;text-align:center;vertical-align:middle;line-height:${ICON_BADGE}px;font-size:0;">` +
-        `<a ${anchorAttrs(toHttpUrl(data[n.key]))} title="${n.label}" style="display:inline-block;text-decoration:none;line-height:0;">` +
-        `<img src="${esc(`${assetsBaseUrl()}/icons/${n.key}.png`)}" alt="${n.label.slice(0, 2)}" width="${ICON}" height="${ICON}" ` +
-        `style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;outline:none;vertical-align:middle;color:#FFFFFF;font-family:${FONT};font-size:8px;font-weight:bold;" />` +
-        `</a></td>`
+        `<td style="padding-left:8px;">` +
+        circle(ICON_BADGE, accent, `<a ${anchorAttrs(toHttpUrl(data[n.key]))} title="${n.label}">${iconImg(n.key, n.label.slice(0, 2))}</a>`) +
+        `</td>`
     )
-    .join(`<td width="8" style="width:8px;font-size:0;line-height:0;">&nbsp;</td>`);
+    .join('');
   // Company profiles, set apart from the employee's own contact details by a hairline and a small heading.
   return (
-    `<table ${TABLE} width="100%" style="width:100%;border-collapse:collapse;"><tr>` +
-    `<td style="border-top:1px solid ${BORDER};padding-top:10px;">` +
-    `<table ${TABLE} style="border-collapse:collapse;"><tr>` +
-    `<td style="padding-right:12px;vertical-align:middle;font-family:${FONT};font-size:10px;line-height:14px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:${FAINT};white-space:nowrap;">${SOCIAL_HEADING}</td>` +
+    `<table ${TABLE} width="100%"><tr><td style="border-top:1px solid ${BORDER};padding-top:10px;">` +
+    `<table ${TABLE}><tr>` +
+    `<td style="${textStyle(10, 14, MUTED, 'padding-right:4px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;')}">${SOCIAL_HEADING}</td>` +
     cells +
     `</tr></table></td></tr></table>`
   );
@@ -276,24 +291,18 @@ function darken(hex: string, amount: number): string {
 /** Certificate pills; onColor = drawn on the accent bar (Baner), with a white outline and text. */
 function certBadges(data: SignatureData, onColor = false): string {
   if (!data.showCerts || CERTIFICATES.length === 0) return '';
-  const pills = CERTIFICATES.map((c) => {
-    const circle = c.color ?? (onColor ? darken(data.accent, 0.3) : data.accent);
+  const cells = CERTIFICATES.map((c, i) => {
+    const fill = c.color ?? (onColor ? darken(data.accent, 0.3) : data.accent);
     const text = onColor ? '#FFFFFF' : BODY;
     const pill =
-      `<table ${TABLE} style="border-collapse:separate;border:1px solid ${onColor ? '#FFFFFF' : BORDER};border-radius:999px;${onColor ? '' : 'background-color:#FFFFFF;'}"><tr>` +
-      `<td style="padding:3px 0 3px 3px;">` +
-      `<table ${TABLE} width="18" style="width:18px;border-collapse:collapse;"><tr>` +
-      `<td width="18" height="18" align="center" valign="middle" bgcolor="${circle}" style="width:18px;height:18px;background-color:${circle};border-radius:50%;text-align:center;vertical-align:middle;line-height:18px;font-size:0;">` +
-      `<img src="${esc(`${assetsBaseUrl()}/icons/${c.icon}.png`)}" alt="" width="${ICON}" height="${ICON}" style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;outline:none;vertical-align:middle;" />` +
-      `</td></tr></table></td>` +
-      `<td style="padding:3px 10px 3px 6px;font-family:${FONT};font-size:11px;line-height:14px;font-weight:bold;color:${text};white-space:nowrap;">${esc(c.label)}</td>` +
+      `<table ${TABLE} style="border-collapse:separate;border:1px solid ${onColor ? '#FFFFFF' : BORDER};border-radius:999px;"${onColor ? '' : ' bgcolor="#FFFFFF"'}><tr>` +
+      `<td style="padding:3px 0 3px 3px;">${circle(18, fill, iconImg(c.icon, ''))}</td>` +
+      `<td style="${textStyle(11, 14, text, 'padding:3px 10px 3px 6px;font-weight:bold;white-space:nowrap;')}">${esc(c.label)}</td>` +
       `</tr></table>`;
-    return c.href
-      ? `<a ${anchorAttrs(toHttpUrl(c.href))} style="text-decoration:none;color:${text};">${pill}</a>`
-      : pill;
-  });
-  const cells = pills.map((p) => `<td style="vertical-align:middle;">${p}</td>`).join(`<td style="width:6px;font-size:0;">&nbsp;</td>`);
-  return `<table ${TABLE} style="border-collapse:collapse;display:inline-table;vertical-align:middle;"><tr>${cells}</tr></table>`;
+    const content = c.href ? `<a ${anchorAttrs(toHttpUrl(c.href))} style="text-decoration:none;">${pill}</a>` : pill;
+    return `<td${i ? ' style="padding-left:6px;"' : ''}>${content}</td>`;
+  }).join('');
+  return `<table ${TABLE}><tr>${cells}</tr></table>`;
 }
 
 // White 12×12 px glyph (native size = display size, see LOGO) on a circle in the accent colour, so one icon set
@@ -301,39 +310,36 @@ function certBadges(data: SignatureData, onColor = false): string {
 const ICON = 12;
 const ICON_BADGE = 20;
 
-function iconBadge(l: ContactLine, accent: string): string {
-  const img =
-    `<img src="${esc(`${assetsBaseUrl()}/icons/${l.icon}.png`)}" alt="${l.label}" width="${ICON}" height="${ICON}" ` +
-    `style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;outline:none;vertical-align:middle;` +
-    `color:#FFFFFF;font-family:${FONT};font-size:10px;font-weight:bold;" />`;
-  return (
-    `<table ${TABLE} width="${ICON_BADGE}" style="width:${ICON_BADGE}px;border-collapse:collapse;"><tr>` +
-    `<td width="${ICON_BADGE}" height="${ICON_BADGE}" align="center" valign="middle" bgcolor="${accent}" ` +
-    `style="width:${ICON_BADGE}px;height:${ICON_BADGE}px;background-color:${accent};border-radius:50%;text-align:center;vertical-align:middle;line-height:${ICON_BADGE}px;font-size:0;">` +
-    `${img}</td></tr></table>`
-  );
-}
-
 function contactMarker(data: SignatureData, l: ContactLine, accent: string): string {
-  if (data.showIcons) return iconBadge(l, accent);
-  return `<span style="font-family:${FONT};font-size:11px;line-height:18px;font-weight:bold;color:${accent};">${l.label}</span>`;
+  if (data.showIcons) return circle(ICON_BADGE, accent, iconImg(l.icon, l.label));
+  return `<span style="${textStyle(11, 18, accent, 'font-weight:bold;')}">${l.label}</span>`;
 }
 
 function contactTable(data: SignatureData, accent: string): string {
-  const rows = contactLines(data)
-    .map(
-      (l) =>
-        `<tr>` +
-        `<td width="${(data.showIcons ? ICON_BADGE : 12) + 10}" style="padding:2px 10px 2px 0;vertical-align:middle;">${contactMarker(data, l, accent)}</td>` +
-        `<td style="padding:2px 0;font-family:${FONT};font-size:13px;line-height:18px;color:${BODY};vertical-align:middle;">${l.icon === 'address' ? addressLinks(l.text, BODY) : link(l.text, l.href, BODY)}</td>` +
-        `</tr>`
-    )
-    .join('');
-  if (!rows) return '';
-  return `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;">${rows}</table>`;
+  const lines = contactLines(data);
+  if (!lines.length) return '';
+  const markerWidth = (data.showIcons ? ICON_BADGE : 12) + 10;
+  return (
+    `<table ${TABLE}>` +
+    lines
+      .map(
+        (l) =>
+          `<tr><td width="${markerWidth}" style="padding:2px 0;">${contactMarker(data, l, accent)}</td>` +
+          `<td style="${textStyle(13, 18, BODY, 'padding:2px 0;')}">${link(l.text, l.href, BODY)}</td></tr>`
+      )
+      .join('') +
+    `</table>`
+  );
 }
 
-const TABLE = 'cellpadding="0" cellspacing="0" border="0" role="presentation"';
+/** Name, position and "department · company" lines shared by the Nowoczesna and Baner templates. */
+function identityRows(data: SignatureData, accent: string): string[] {
+  return [
+    `<td style="${textStyle(18, 24, TEXT, 'font-weight:bold;')}">${esc(data.fullName)}</td>`,
+    data.position.trim() ? `<td style="${textStyle(13, 18, accent, 'font-weight:bold;')}">${esc(data.position)}</td>` : '',
+    `<td style="${textStyle(12, 18, MUTED)}">${esc(subtitle(data))}</td>`,
+  ];
+}
 
 // ─── Templates ────────────────────────────────────────────────────────────
 
@@ -346,25 +352,23 @@ function modernTemplate(data: SignatureData): string {
   const footer =
     data.showLogo || certs
       ? `<tr><td colspan="${hasPhoto ? 2 : 1}" style="padding-top:16px;">` +
-        `<table ${TABLE} width="100%" style="border-collapse:collapse;border-top:1px solid ${BORDER};"><tr><td>` +
+        `<table ${TABLE} width="100%"><tr><td style="border-top:1px solid ${BORDER};">` +
         (data.showLogo ? floatBlock('left', logo(data, LOGO), '10px 14px 0 0') : '') +
         (certs ? floatBlock('left', certs, '10px 0 0 0') : '') +
         `</td></tr></table></td></tr>`
       : '';
 
   return (
-    `<table ${TABLE} style="border-collapse:collapse;font-family:${FONT};">` +
-    `<tr>` +
+    `<table ${TABLE}><tr>` +
     (hasPhoto ? photoCell(data, 84, 18) : '') +
-    `<td style="padding:0 0 0 16px;border-left:3px solid ${accent};vertical-align:top;">` +
-    `<div style="margin:0;font-family:${FONT};font-size:18px;line-height:24px;font-weight:bold;color:${TEXT};">${esc(data.fullName)}</div>` +
-    (data.position.trim()
-      ? `<div style="margin:2px 0 0;font-family:${FONT};font-size:13px;line-height:18px;font-weight:bold;color:${accent};">${esc(data.position)}</div>`
-      : '') +
-    `<div style="margin:0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(subtitle(data))}</div>` +
-    (contacts ? `<div style="margin:12px 0 0;">${contacts}</div>` : '') +
-    (social ? `<div style="margin:14px 0 0;">${social}</div>` : '') +
-    `</td></tr>` +
+    `<td valign="top" style="padding-left:16px;border-left:3px solid ${accent};">` +
+    `<table ${TABLE}>` +
+    rows([
+      ...identityRows(data, accent),
+      contacts && `<td style="padding-top:12px;">${contacts}</td>`,
+      social && `<td style="padding-top:14px;">${social}</td>`,
+    ]) +
+    `</table></td></tr>` +
     footer +
     `</table>`
   );
@@ -378,9 +382,8 @@ function minimalTemplate(data: SignatureData): string {
       `<span style="white-space:nowrap;">` +
       (data.showIcons
         ? // Inline badge: a table would force a line break, so the circle is a span (square in classic Outlook).
-          `<span style="display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;background-color:${accent};border-radius:50%;vertical-align:middle;">` +
-          `<img src="${esc(`${assetsBaseUrl()}/icons/${l.icon}.png`)}" alt="${l.label}" width="${ICON}" height="${ICON}" ` +
-          `style="display:inline-block;width:${ICON}px;height:${ICON}px;border:0;vertical-align:middle;color:#FFFFFF;font-size:10px;font-weight:bold;" />` +
+          `<span style="display:inline-block;width:18px;height:18px;background-color:${accent};border-radius:50%;vertical-align:middle;">` +
+          iconImg(l.icon, l.label, 'display:block;margin:3px;') +
           `</span>&nbsp;` +
           link(l.text, l.href, BODY, 'vertical-align:middle;')
         : `<span style="color:${accent};font-weight:bold;font-size:11px;">${l.label}</span>&nbsp;` + link(l.text, l.href, BODY)) +
@@ -388,39 +391,30 @@ function minimalTemplate(data: SignatureData): string {
     )
     // Plain spaces around the separator are the only line-break points, so an icon never ends up alone on a line.
     .join(` <span style="color:${BORDER};">&nbsp;|&nbsp;</span> `);
+  const address = contactLines(data).find((l) => l.label === 'A');
   const meta = [data.position.trim(), subtitle(data)].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ');
   const social = socialRow(data, accent);
   const hasPhoto = Boolean(data.photoUrl.trim());
 
   const body =
-    `<table ${TABLE} style="border-collapse:collapse;font-family:${FONT};">` +
-    `<tr><td style="font-family:${FONT};font-size:16px;line-height:22px;font-weight:bold;color:${TEXT};">${esc(data.fullName)}</td></tr>` +
-    `<tr><td style="font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${meta}</td></tr>` +
-    `<tr><td style="padding:10px 0;"><table ${TABLE} style="border-collapse:collapse;"><tr>` +
-    `<td width="32" height="2" bgcolor="${accent}" style="width:32px;height:2px;background-color:${accent};font-size:0;line-height:0;">&nbsp;</td>` +
-    `</tr></table></td></tr>` +
-    (inline
-      ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${BODY};">${inline}</td></tr>`
-      : '') +
-    (data.address.trim()
-      ? `<tr><td style="font-family:${FONT};font-size:12px;line-height:20px;color:${MUTED};">${addressLinks(data.address.trim(), MUTED)}</td></tr>`
-      : '') +
-    (social ? `<tr><td style="padding-top:12px;">${social}</td></tr>` : '') +
-    (data.showLogo || data.showCerts
-      ? `<tr><td style="padding-top:2px;">` +
-        (data.showLogo ? floatBlock('left', logo(data, LOGO), '10px 14px 0 0') : '') +
-        (data.showCerts ? floatBlock('left', certBadges(data), '10px 0 0 0') : '') +
-        `</td></tr>`
-      : '') +
+    `<table ${TABLE}>` +
+    rows([
+      `<td style="${textStyle(16, 22, TEXT, 'font-weight:bold;')}">${esc(data.fullName)}</td>`,
+      `<td style="${textStyle(12, 18, MUTED)}">${meta}</td>`,
+      `<td style="padding:10px 0;"><table ${TABLE}><tr><td width="32" height="2" bgcolor="${accent}" style="font-size:0;line-height:0;">&nbsp;</td></tr></table></td>`,
+      inline && `<td style="${textStyle(12, 20, BODY)}">${inline}</td>`,
+      address && `<td style="${textStyle(12, 20, MUTED)}">${link(address.text, address.href, MUTED)}</td>`,
+      social && `<td style="padding-top:12px;">${social}</td>`,
+      (data.showLogo || data.showCerts) &&
+        `<td style="padding-top:2px;">` +
+          (data.showLogo ? floatBlock('left', logo(data, LOGO), '10px 14px 0 0') : '') +
+          (data.showCerts ? floatBlock('left', certBadges(data), '10px 0 0 0') : '') +
+          `</td>`,
+    ]) +
     `</table>`;
 
   if (!hasPhoto) return body;
-  return (
-    `<table ${TABLE} style="border-collapse:collapse;font-family:${FONT};"><tr>` +
-    photoCell(data, 64, 16) +
-    `<td style="vertical-align:top;">${body}</td>` +
-    `</tr></table>`
-  );
+  return `<table ${TABLE}><tr>${photoCell(data, 64, 16)}<td valign="top">${body}</td></tr></table>`;
 }
 
 function bannerTemplate(data: SignatureData): string {
@@ -429,29 +423,28 @@ function bannerTemplate(data: SignatureData): string {
   const contacts = contactTable(data, accent);
   const website = data.website.trim()
     ? link(displayUrl(data.website), toHttpUrl(data.website), '#FFFFFF', 'font-weight:bold;')
-    : '';
+    : `<span style="font-weight:bold;">${COMPANY_NAME}</span>`;
   const social = socialRow(data, accent);
-  const barLeft = website || `<span style="font-family:${FONT};font-size:13px;font-weight:bold;color:#FFFFFF;">${COMPANY_NAME}</span>`;
 
   return (
-    `<table ${TABLE} width="460" style="width:100%;max-width:460px;border-collapse:separate;border:1px solid ${BORDER};border-radius:12px;font-family:${FONT};">` +
+    `<table ${TABLE} width="460" style="width:100%;max-width:460px;border-collapse:separate;border:1px solid ${BORDER};border-radius:12px;">` +
     `<tr><td style="padding:18px 20px;">` +
     (data.showLogo ? floatBlock('right', logo(data, LOGO), '0 0 10px 12px') : '') +
-    `<table ${TABLE} style="border-collapse:collapse;"><tr>` +
+    `<table ${TABLE}><tr>` +
     (hasPhoto ? photoCell(data, 60, 14, 'middle') : '') +
-    `<td style="vertical-align:middle;">` +
-    `<div style="margin:0;font-family:${FONT};font-size:18px;line-height:24px;font-weight:bold;color:${TEXT};">${esc(data.fullName)}</div>` +
-    (data.position.trim()
-      ? `<div style="margin:0;font-family:${FONT};font-size:13px;line-height:18px;color:${accent};font-weight:bold;">${esc(data.position)}</div>`
-      : '') +
-    `<div style="margin:0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(subtitle(data))}</div>` +
-    `</td>` +
+    `<td><table ${TABLE}>${rows(identityRows(data, accent))}</table></td>` +
     `</tr></table>` +
-    (contacts ? `<div style="margin:14px 0 0;">${contacts}</div>` : '') +
-    (social ? `<div style="margin:14px 0 0;">${social}</div>` : '') +
+    (contacts || social
+      ? `<table ${TABLE}>` +
+        rows([
+          contacts && `<td style="padding-top:14px;">${contacts}</td>`,
+          social && `<td style="padding-top:14px;">${social}</td>`,
+        ]) +
+        `</table>`
+      : '') +
     `</td></tr>` +
-    `<tr><td bgcolor="${accent}" style="background-color:${accent};padding:12px 20px;border-radius:0 0 11px 11px;">` +
-    floatBlock('left', `<span style="font-family:${FONT};font-size:12px;line-height:28px;color:#FFFFFF;">${barLeft}</span>`, '2px 12px 2px 0') +
+    `<tr><td bgcolor="${accent}" style="padding:12px 20px;border-radius:0 0 11px 11px;">` +
+    floatBlock('left', `<span style="${textStyle(12, 28, '#FFFFFF')}">${website}</span>`, '2px 12px 2px 0') +
     (data.showCerts ? floatBlock('right', certBadges(data, true), '2px 0') : '') +
     `</td></tr>` +
     `</table>`
@@ -459,19 +452,17 @@ function bannerTemplate(data: SignatureData): string {
 }
 
 function extras(data: SignatureData): string {
-  const rows: string[] = [];
+  const items: string[] = [];
   if (data.showEco) {
-    rows.push(
-      `<tr><td style="padding-top:14px;font-family:${FONT};font-size:11px;line-height:16px;color:#2F7D4F;">&#127793;&nbsp;${esc(ECO_NOTE)}</td></tr>`
-    );
+    items.push(`<td style="${textStyle(11, 16, '#2F7D4F', 'padding-top:14px;')}">&#127793;&nbsp;${esc(ECO_NOTE)}</td>`);
   }
   if (data.showDisclaimer && data.disclaimer.trim()) {
-    rows.push(
-      `<tr><td style="padding-top:${data.showEco ? 6 : 14}px;font-family:${FONT};font-size:10px;line-height:14px;color:${FAINT};">${esc(data.disclaimer.trim())}</td></tr>`
+    items.push(
+      `<td style="${textStyle(11, 15, MUTED, `padding-top:${data.showEco ? 6 : 14}px;`)}">${esc(data.disclaimer.trim())}</td>`
     );
   }
-  if (!rows.length) return '';
-  return `<table ${TABLE} width="460" style="width:100%;max-width:460px;border-collapse:collapse;">${rows.join('')}</table>`;
+  if (!items.length) return '';
+  return `<table ${TABLE} width="460" style="width:100%;max-width:460px;">${rows(items)}</table>`;
 }
 
 const TEMPLATE_RENDERERS: Record<SignatureTemplate, (data: SignatureData) => string> = {

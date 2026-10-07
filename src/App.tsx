@@ -208,6 +208,10 @@ function TemplateThumb({ id, accent }: { id: SignatureTemplate; accent: string }
   );
 }
 
+// Gmail and Outlook.com reject signatures over 10,000 characters of HTML; older Exchange/OWA allows about 8,000.
+const SIGNATURE_LIMIT = 10_000;
+const OWA_LIMIT = 8_000;
+
 const instructions: { id: string; label: string; steps: string[] }[] = [
   {
     id: 'gmail',
@@ -217,6 +221,7 @@ const instructions: { id: string; label: string; steps: string[] }[] = [
       'W Gmailu otwórz ⚙️ Ustawienia → Zobacz wszystkie ustawienia → Ogólne → Podpis.',
       'Utwórz nowy podpis i wklej (Ctrl/Cmd + V).',
       'Ustaw go jako domyślny dla nowych wiadomości i odpowiedzi, a na dole strony kliknij „Zapisz zmiany”.',
+      'W aplikacji Gmail na telefonie wyłącz „Podpis w aplikacji mobilnej” — wtedy używana jest ta sama stopka co na komputerze.',
     ],
   },
   {
@@ -236,6 +241,7 @@ const instructions: { id: string; label: string; steps: string[] }[] = [
       'Najprościej: skopiuj stopkę i wklej ją w Plik → Opcje → Poczta → Podpisy.',
       'Alternatywnie pobierz plik .htm i umieść go w folderze %APPDATA%\\Microsoft\\Signatures.',
       'Uruchom ponownie Outlooka i wybierz stopkę w Opcjach → Poczta → Podpisy.',
+      'Wyślij próbną wiadomość do siebie — Outlook klasyczny nie zaokrągla rogów, więc ikony i ramki mają tam kwadratowe narożniki.',
     ],
   },
   {
@@ -245,7 +251,7 @@ const instructions: { id: string; label: string; steps: string[] }[] = [
       'Kliknij „Kopiuj stopkę”.',
       'W Mail otwórz Ustawienia → Podpisy i dodaj nowy podpis (+).',
       'Odznacz „Zawsze używaj domyślnej czcionki wiadomości” i wklej stopkę.',
-      'Na iPhonie: Ustawienia → Aplikacje → Mail → Podpis i wklej stopkę.',
+      'Na iPhonie: Ustawienia → Aplikacje → Mail → Podpis i wklej stopkę. Jeśli formatowanie zniknie, potrząśnij telefonem i wybierz „Cofnij zmianę atrybutów”.',
     ],
   },
 ];
@@ -263,6 +269,7 @@ export default function App() {
   const isSample = !data.fullName.trim();
   const previewData = useMemo<SignatureData>(() => (isSample ? { ...data, ...SAMPLE } : data), [data, isSample]);
   const html = useMemo(() => buildSignatureHtml(data), [data]);
+  const tooLong = html.length > SIGNATURE_LIMIT;
   const previewHtml = useMemo(() => buildSignatureHtml(previewData), [previewData]);
   const selectedEmployee = EMPLOYEES.findIndex((e) => e.email.toLowerCase() === data.email.trim().toLowerCase());
 
@@ -637,6 +644,25 @@ export default function App() {
                   <p>
                     Grafika jest ładowana z <span className="font-mono break-all">{localImage}</span> — odbiorcy jej
                     nie zobaczą. Użyj publicznego linku.
+                  </p>
+                </div>
+              )}
+
+              {data.fullName.trim() && (
+                <div
+                  className={`flex items-start gap-2 px-6 py-3 border-t text-xs ${
+                    tooLong ? 'bg-amber-50 border-amber-100 text-amber-800' : 'bg-gray-50 border-gray-100 text-gray-600'
+                  }`}
+                >
+                  {tooLong ? <TriangleAlert size={14} className="shrink-0 mt-0.5" /> : <Info size={14} className="shrink-0 mt-0.5" />}
+                  <p>
+                    Rozmiar stopki: <span className="font-semibold tabular-nums">{html.length.toLocaleString('pl-PL')}</span> /{' '}
+                    {SIGNATURE_LIMIT.toLocaleString('pl-PL')} znaków HTML (limit Gmaila i Outlook.com).{' '}
+                    {tooLong
+                      ? 'Gmail jej nie zapisze — wyłącz certyfikaty, notę ekologiczną lub klauzulę albo skróć teksty.'
+                      : html.length > OWA_LIMIT
+                        ? 'Starsze serwery Exchange (Outlook w przeglądarce) mogą przyjąć tylko ok. 8 000 znaków.'
+                        : 'Mieści się w limitach wszystkich popularnych programów pocztowych.'}
                   </p>
                 </div>
               )}
