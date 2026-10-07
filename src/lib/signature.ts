@@ -138,8 +138,8 @@ const BORDER = '#E5E7EB';
 // Display size; public/logo.png is exactly twice this (see defaultLogoUrl).
 const LOGO = { width: 150, height: 29 };
 
-/** cellpadding/cellspacing="0" also replace border-collapse:collapse. */
-const TABLE = 'cellpadding="0" cellspacing="0" border="0"';
+/** cellpadding/cellspacing="0" also replace border-collapse:collapse; tables have no border by default. */
+const TABLE = 'cellpadding="0" cellspacing="0"';
 
 function esc(value: string): string {
   return value
@@ -256,10 +256,25 @@ function photoCell(data: SignatureData, size: number, gap: number, valign: 'top'
 
 /**
  * Floated block (table align=left/right): sits side by side when there is room and wraps onto the next line on
- * narrow phone screens. Works in Outlook desktop too, unlike inline-block.
+ * narrow phone screens. Works in Outlook desktop too; inline-block keeps the wrapping where a client drops align.
  */
 function floatBlock(align: 'left' | 'right', content: string, padding: string): string {
-  return `<table ${TABLE} align="${align}"><tr><td style="padding:${padding};">${content}</td></tr></table>`;
+  return `<table ${TABLE} align="${align}" style="display:inline-block;vertical-align:middle;"><tr><td style="padding:${padding};">${content}</td></tr></table>`;
+}
+
+/** Two cells side by side. Unlike floats, table cells survive Outlook and the signature editors rewriting the HTML. */
+function pair(left: string, right: string, gap: number, rightAlign = false): string {
+  return (
+    `<table ${TABLE}${rightAlign ? ' width="100%"' : ''}><tr><td valign="middle" style="padding-right:${gap}px;">${left}</td>` +
+    `<td valign="middle"${rightAlign ? ' align="right"' : ''}>${right}</td></tr></table>`
+  );
+}
+
+/** Logo with the certificates next to it; on narrow screens the certificates stack beside the logo. */
+function logoAndCerts(data: SignatureData): string {
+  const certs = certBadges(data);
+  if (!data.showLogo) return certs;
+  return certs ? pair(logo(data, LOGO), certs, 12) : logo(data, LOGO);
 }
 
 /**
@@ -317,7 +332,7 @@ function darken(hex: string, amount: number): string {
 /** Certificate pills; onColor = drawn on the accent bar (Baner), with a white outline and text. */
 function certBadges(data: SignatureData, onColor = false): string {
   if (!data.showCerts || CERTIFICATES.length === 0) return '';
-  const cells = CERTIFICATES.map((c, i) => {
+  return CERTIFICATES.map((c) => {
     const fill = c.color ?? (onColor ? darken(data.accent, 0.3) : data.accent);
     const text = onColor ? '#FFFFFF' : BODY;
     // Links sit inside the cells: Apple Mail rewrites an <a> wrapped around a table into bare, blue links.
@@ -326,11 +341,10 @@ function certBadges(data: SignatureData, onColor = false): string {
     const pill =
       `<table ${TABLE} style="border-collapse:separate;border:1px solid ${onColor ? '#FFFFFF' : BORDER};border-radius:999px;"${onColor ? '' : ' bgcolor="#FFFFFF"'}><tr>` +
       `<td style="padding:3px 0 3px 3px;">${circle(18, fill, linked(iconImg(c.icon, '')))}</td>` +
-      `<td style="${textStyle(11, 14, text, 'padding:3px 10px 3px 6px;font-weight:bold;white-space:nowrap;')}">${linked(link(c.label, href, text))}</td>` +
+      `<td style="${textStyle(11, 14, text, 'padding:3px 10px 3px 6px;font-weight:bold;')}">${linked(link(c.label, href, text))}</td>` +
       `</tr></table>`;
-    return `<td${i ? ' style="padding-left:6px;"' : ''}>${pill}</td>`;
+    return floatBlock('left', pill, onColor ? '3px 0 3px 6px' : '3px 6px 3px 0');
   }).join('');
-  return `<table ${TABLE}><tr>${cells}</tr></table>`;
 }
 
 // White glyph (2× file shown at 12×12 px, 192 DPI like the logo) on a circle in the accent colour, so one icon set
@@ -376,15 +390,12 @@ function modernTemplate(data: SignatureData): string {
   const hasPhoto = Boolean(data.photoUrl.trim());
   const contacts = contactTable(data, accent);
   const social = socialRow(data, accent);
-  const certs = certBadges(data);
-  const footer =
-    data.showLogo || certs
-      ? `<tr><td colspan="${hasPhoto ? 2 : 1}" style="padding-top:16px;">` +
-        `<table ${TABLE} width="100%"><tr><td style="border-top:1px solid ${BORDER};">` +
-        (data.showLogo ? floatBlock('left', logo(data, LOGO), '10px 14px 0 0') : '') +
-        (certs ? floatBlock('left', certs, '10px 0 0 0') : '') +
-        `</td></tr></table></td></tr>`
-      : '';
+  const brand = logoAndCerts(data);
+  const footer = brand
+    ? `<tr><td colspan="${hasPhoto ? 2 : 1}" style="padding-top:16px;">` +
+      `<table ${TABLE} width="100%"><tr><td style="border-top:1px solid ${BORDER};padding-top:10px;">${brand}</td></tr></table>` +
+      `</td></tr>`
+    : '';
 
   return (
     `<table ${TABLE} ${BOX}"><tr>` +
@@ -423,6 +434,7 @@ function minimalTemplate(data: SignatureData): string {
   const meta = [data.position.trim(), subtitle(data)].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ');
   const social = socialRow(data, accent);
   const hasPhoto = Boolean(data.photoUrl.trim());
+  const brand = logoAndCerts(data);
 
   const body =
     `<table ${TABLE}${hasPhoto ? '' : ` ${BOX}"`}>` +
@@ -433,16 +445,16 @@ function minimalTemplate(data: SignatureData): string {
       inline && `<td style="${textStyle(12, 20, BODY)}">${inline}</td>`,
       address && `<td style="${textStyle(12, 20, MUTED)}">${link(address.text, address.href, MUTED)}</td>`,
       social && `<td style="padding-top:12px;">${social}</td>`,
-      (data.showLogo || data.showCerts) &&
-        `<td style="padding-top:2px;">` +
-          (data.showLogo ? floatBlock('left', logo(data, LOGO), '10px 14px 0 0') : '') +
-          (data.showCerts ? floatBlock('left', certBadges(data), '10px 0 0 0') : '') +
-          `</td>`,
+      !hasPhoto && brand && `<td style="padding-top:12px;">${brand}</td>`,
     ]) +
     `</table>`;
 
   if (!hasPhoto) return body;
-  return `<table ${TABLE} ${BOX}"><tr>${photoCell(data, 64, 16)}<td valign="top">${body}</td></tr></table>`;
+  return (
+    `<table ${TABLE} ${BOX}"><tr>${photoCell(data, 64, 16)}<td valign="top">${body}</td></tr>` +
+    (brand ? `<tr><td colspan="2" style="padding-top:12px;">${brand}</td></tr>` : '') +
+    `</table>`
+  );
 }
 
 function bannerTemplate(data: SignatureData): string {
@@ -472,8 +484,15 @@ function bannerTemplate(data: SignatureData): string {
       : '') +
     `</td></tr>` +
     `<tr><td bgcolor="${accent}" style="padding:12px 20px;border-radius:0 0 11px 11px;">` +
-    floatBlock('left', `<span style="${textStyle(12, 28, '#FFFFFF')}">${website}</span>`, '2px 12px 2px 0') +
-    (data.showCerts ? floatBlock('right', certBadges(data, true), '2px 0') : '') +
+    (data.showCerts
+      ? pair(
+          `<span style="${textStyle(12, 28, '#FFFFFF')}">${website}</span>`,
+          // The plain table takes the cell's right alignment; the pills float left inside it to keep their order.
+          `<table ${TABLE}><tr><td>${certBadges(data, true)}</td></tr></table>`,
+          12,
+          true
+        )
+      : `<span style="${textStyle(12, 28, '#FFFFFF')}">${website}</span>`) +
     `</td></tr>` +
     `</table>`
   );
