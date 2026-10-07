@@ -35,8 +35,10 @@ import {
   buildSignatureDocument,
   buildSignatureHtml,
   buildSignatureText,
+  assetsBaseUrl,
   defaultLogoUrl,
   isLocalUrl,
+  isPreviewHost,
   signatureFileName,
   type SignatureData,
   type SignatureTemplate,
@@ -277,7 +279,7 @@ export default function App() {
     data.showLogo ? data.logoUrl : '',
     data.photoUrl,
     data.showIcons || data.showCerts || data.linkedin || data.instagram || data.facebook
-      ? window.location.origin
+      ? assetsBaseUrl()
       : '',
   ].find((u) => u && isLocalUrl(u));
   const [photoFailed, setPhotoFailed] = useState<string | null>(null);
@@ -635,6 +637,17 @@ export default function App() {
                 <div className="flex items-start gap-2 px-6 py-3 bg-blue-50 border-t border-blue-100 text-xs text-blue-800">
                   <Info size={14} className="shrink-0 mt-0.5" />
                   <p>Podgląd pokazuje przykładowe dane. Wpisz imię i nazwisko, aby zobaczyć swoją stopkę.</p>
+                </div>
+              )}
+
+              {isPreviewHost() && (
+                <div className="flex items-start gap-2 px-6 py-3 bg-blue-50 border-t border-blue-100 text-xs text-blue-800">
+                  <Info size={14} className="shrink-0 mt-0.5" />
+                  <p>
+                    To wersja testowa generatora. Logo i ikony w skopiowanej stopce ładują się z{' '}
+                    <span className="font-mono break-all">{assetsBaseUrl()}</span>, bo z adresu testowego programy
+                    pocztowe nie mogą ich pobrać.
+                  </p>
                 </div>
               )}
 

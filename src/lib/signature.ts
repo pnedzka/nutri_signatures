@@ -94,10 +94,27 @@ export function defaultLogoUrl(): string {
   return `${assetsBaseUrl()}/logo.png`;
 }
 
-/** Public host of the images in /public (logo, contact icons). Defaults to wherever the generator runs. */
-function assetsBaseUrl(): string {
+/** Production address of the generator; its /public images are what signatures link to. */
+export const PRODUCTION_URL = 'https://nutri-signatures.vercel.app';
+
+/**
+ * Vercel preview deployments (other *.vercel.app hosts) sit behind Vercel Authentication, so mail clients cannot
+ * load images from them; signatures copied there would also break once the preview is gone.
+ */
+export function isPreviewHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host.endsWith('.vercel.app') && `https://${host}` !== PRODUCTION_URL;
+}
+
+/**
+ * Public host of the images in /public (logo, contact icons): VITE_EMAIL_ASSETS_URL, else the production
+ * generator when running on a preview deployment, else wherever the generator runs.
+ */
+export function assetsBaseUrl(): string {
   const fromEnv = import.meta.env.VITE_EMAIL_ASSETS_URL as string | undefined;
   if (fromEnv) return fromEnv.replace(/\/+$/, '');
+  if (isPreviewHost()) return PRODUCTION_URL;
   return typeof window !== 'undefined' ? window.location.origin : '';
 }
 
