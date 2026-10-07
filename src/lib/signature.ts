@@ -245,6 +245,14 @@ function floatBlock(align: 'left' | 'right', content: string, padding: string): 
   return `<table ${TABLE} align="${align}"><tr><td style="padding:${padding};">${content}</td></tr></table>`;
 }
 
+/**
+ * Outer width of every template: 500 px on desktop, so the logo and certificates sit side by side instead of
+ * wrapping inside a shrink-to-fit table, but never wider than the screen. Outlook desktop ignores max-width and
+ * keeps the fixed 500 px, which is fine there; width:100% would stretch it across the whole reading pane.
+ */
+const WIDTH = 500;
+const BOX = `width="${WIDTH}" style="width:${WIDTH}px;max-width:100%;`;
+
 /** One table row per block: the Outlook-safe way to stack content with vertical spacing. */
 function rows(items: (string | false | null | undefined)[]): string {
   return items.filter(Boolean).map((r) => `<tr>${r}</tr>`).join('');
@@ -295,13 +303,15 @@ function certBadges(data: SignatureData, onColor = false): string {
   const cells = CERTIFICATES.map((c, i) => {
     const fill = c.color ?? (onColor ? darken(data.accent, 0.3) : data.accent);
     const text = onColor ? '#FFFFFF' : BODY;
+    // Links sit inside the cells: Apple Mail rewrites an <a> wrapped around a table into bare, blue links.
+    const href = c.href ? toHttpUrl(c.href) : '';
+    const linked = (inner: string) => (href && !inner.startsWith('<a ') ? `<a ${anchorAttrs(href)}>${inner}</a>` : inner);
     const pill =
       `<table ${TABLE} style="border-collapse:separate;border:1px solid ${onColor ? '#FFFFFF' : BORDER};border-radius:999px;"${onColor ? '' : ' bgcolor="#FFFFFF"'}><tr>` +
-      `<td style="padding:3px 0 3px 3px;">${circle(18, fill, iconImg(c.icon, ''))}</td>` +
-      `<td style="${textStyle(11, 14, text, 'padding:3px 10px 3px 6px;font-weight:bold;white-space:nowrap;')}">${esc(c.label)}</td>` +
+      `<td style="padding:3px 0 3px 3px;">${circle(18, fill, linked(iconImg(c.icon, '')))}</td>` +
+      `<td style="${textStyle(11, 14, text, 'padding:3px 10px 3px 6px;font-weight:bold;white-space:nowrap;')}">${linked(link(c.label, href, text))}</td>` +
       `</tr></table>`;
-    const content = c.href ? `<a ${anchorAttrs(toHttpUrl(c.href))} style="text-decoration:none;">${pill}</a>` : pill;
-    return `<td${i ? ' style="padding-left:6px;"' : ''}>${content}</td>`;
+    return `<td${i ? ' style="padding-left:6px;"' : ''}>${pill}</td>`;
   }).join('');
   return `<table ${TABLE}><tr>${cells}</tr></table>`;
 }
@@ -360,7 +370,7 @@ function modernTemplate(data: SignatureData): string {
       : '';
 
   return (
-    `<table ${TABLE}><tr>` +
+    `<table ${TABLE} ${BOX}"><tr>` +
     (hasPhoto ? photoCell(data, 84, 18) : '') +
     `<td valign="top" style="padding-left:16px;border-left:3px solid ${accent};">` +
     `<table ${TABLE}>` +
@@ -398,7 +408,7 @@ function minimalTemplate(data: SignatureData): string {
   const hasPhoto = Boolean(data.photoUrl.trim());
 
   const body =
-    `<table ${TABLE}>` +
+    `<table ${TABLE}${hasPhoto ? '' : ` ${BOX}"`}>` +
     rows([
       `<td style="${textStyle(16, 22, TEXT, 'font-weight:bold;')}">${esc(data.fullName)}</td>`,
       `<td style="${textStyle(12, 18, MUTED)}">${meta}</td>`,
@@ -415,7 +425,7 @@ function minimalTemplate(data: SignatureData): string {
     `</table>`;
 
   if (!hasPhoto) return body;
-  return `<table ${TABLE}><tr>${photoCell(data, 64, 16)}<td valign="top">${body}</td></tr></table>`;
+  return `<table ${TABLE} ${BOX}"><tr>${photoCell(data, 64, 16)}<td valign="top">${body}</td></tr></table>`;
 }
 
 function bannerTemplate(data: SignatureData): string {
@@ -428,7 +438,7 @@ function bannerTemplate(data: SignatureData): string {
   const social = socialRow(data, accent);
 
   return (
-    `<table ${TABLE} width="460" style="width:100%;max-width:460px;border-collapse:separate;border:1px solid ${BORDER};border-radius:12px;">` +
+    `<table ${TABLE} ${BOX}border-collapse:separate;border:1px solid ${BORDER};border-radius:12px;">` +
     `<tr><td style="padding:18px 20px;">` +
     (data.showLogo ? floatBlock('right', logo(data, LOGO), '0 0 10px 12px') : '') +
     `<table ${TABLE}><tr>` +
@@ -463,7 +473,7 @@ function extras(data: SignatureData): string {
     );
   }
   if (!items.length) return '';
-  return `<table ${TABLE} width="460" style="width:100%;max-width:460px;">${rows(items)}</table>`;
+  return `<table ${TABLE} ${BOX}">${rows(items)}</table>`;
 }
 
 const TEMPLATE_RENDERERS: Record<SignatureTemplate, (data: SignatureData) => string> = {
