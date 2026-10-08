@@ -69,10 +69,10 @@ Na `localhost` podgląd pokazuje ostrzeżenie o grafikach — to normalne, odbio
 
 ## Wspólna baza zapisanych stopek
 
-Zapisane stopki trafiają do bazy Upstash Redis przez funkcję `api/signatures.ts`, więc cały zespół widzi tę samą listę na każdym urządzeniu. Dostęp wymaga hasła zespołu.
+Zapisane stopki trafiają do prywatnego magazynu Vercel Blob (plik `signatures/<id>.json` na stopkę) przez funkcję `api/signatures.ts`, więc cały zespół widzi tę samą listę na każdym urządzeniu. Dostęp wymaga hasła zespołu.
 
-1. Vercel → projekt → **Storage** → **Create Database** → **Upstash for Redis** (plan darmowy) → podłącz do projektu. Vercel doda zmienne `KV_REST_API_URL` i `KV_REST_API_TOKEN` (działają też `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`).
-2. **Settings → Environment Variables**: dodaj `TEAM_PASSWORD` z hasłem zespołu.
+1. Vercel → projekt → **Storage** → **Create** → **Blob** z dostępem **Private**, podłączony do projektu. Vercel doda zmienną `BLOB_READ_WRITE_TOKEN`.
+2. **Settings → Environment Variables**: `TEAM_PASSWORD` z hasłem zespołu (zmiana hasła = edycja tej zmiennej i ponowne wdrożenie).
 3. Wdróż ponownie (Deployments → Redeploy), bo zmienne działają od następnego wdrożenia.
 
 Bez tych zmiennych (i przy `npm run dev`) generator działa jak wcześniej: stopki zapisują się tylko w przeglądarce. Przy pierwszym połączeniu stopki zapisane wcześniej w przeglądarce są wysyłane do bazy. Zmiany zrobione bez połączenia czekają w przeglądarce i wysyłają się przy następnym połączeniu.

@@ -26,12 +26,17 @@ export function SavedSignatures({ suggestedName }: { suggestedName: string }) {
   const [password, setPassword] = useState('');
   const shared = cloud === 'ready';
 
-  // Load the team list on start and whenever the tab comes back into focus (a colleague may have changed it).
+  // Load the team list on start and when the tab comes back into focus (a colleague may have changed it), at most
+  // once a minute: every refresh lists the Blob store, which counts towards the plan's operation quota.
   useEffect(() => {
+    let lastSync = Date.now();
     void useSignatureStore.getState().connect();
     const onFocus = () => {
       const status = useSignatureStore.getState().cloud;
-      if (status === 'ready' || status === 'error') void useSignatureStore.getState().connect();
+      if ((status === 'ready' || status === 'error') && Date.now() - lastSync > 60_000) {
+        lastSync = Date.now();
+        void useSignatureStore.getState().connect();
+      }
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
