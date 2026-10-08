@@ -21,8 +21,6 @@ interface SignatureStore {
   currentId: string | null;
   saved: SavedSignature[];
   update: (patch: Partial<SignatureData>) => void;
-  /** Clears the form and detaches it from any saved signature. */
-  reset: () => void;
   saveAs: (name: string) => void;
   saveCurrent: () => void;
   open: (id: string) => void;
@@ -56,7 +54,6 @@ export const useSignatureStore = create<SignatureStore>()(
       currentId: null,
       saved: [],
       update: (patch) => set((state) => ({ overrides: { ...state.overrides, ...patch } })),
-      reset: () => set({ overrides: {}, currentId: null }),
       saveAs: (name) => {
         const item: SavedSignature = {
           id: newId(),

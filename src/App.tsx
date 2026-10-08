@@ -10,7 +10,6 @@ import {
   Monitor,
   Palette,
   Phone,
-  RotateCcw,
   Settings2,
   Share2,
   Smartphone,
@@ -261,7 +260,7 @@ const instructions: { id: string; label: string; steps: string[] }[] = [
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { overrides, update, reset } = useSignatureStore();
+  const { overrides, update } = useSignatureStore();
   const toast = useToast();
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [guide, setGuide] = useState(instructions[0].id);
@@ -326,11 +325,6 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleReset = () => {
-    reset();
-    toast.info('Formularz wyczyszczony');
-  };
-
   const handleSelectEmployee = (index: number) => {
     if (index < 0) return;
     update(employeeFields(EMPLOYEES[index]));
@@ -347,10 +341,6 @@ export default function App() {
             <span className="hidden sm:block h-5 w-px bg-gray-200" aria-hidden="true" />
             <span className="hidden sm:block text-sm font-medium text-gray-500 truncate">Generator stopek e-mail</span>
           </div>
-          <Button variant="secondary" size="sm" onClick={handleReset} className="whitespace-nowrap">
-            <RotateCcw size={14} />
-            Wyczyść
-          </Button>
         </div>
       </header>
 
