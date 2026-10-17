@@ -1,6 +1,7 @@
 // Shared list of saved signatures for the whole team, stored as private JSON files in Vercel Blob
 // (signatures/<id>.json, one file per signature so concurrent saves never overwrite each other).
-// Every request needs the team password (TEAM_PASSWORD) in the x-team-password header.
+// Every request needs a signed-in Nutri Partners account with access to the generator (Authorization: Bearer <token>,
+// see _lib/access.ts) and the team password (TEAM_PASSWORD) in the x-team-password header.
 //
 //   GET    /api/signatures          → { signatures: SavedSignature[] }
 //   PUT    /api/signatures          body { signature: SavedSignature } → { ok: true }
@@ -10,6 +11,7 @@
 
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { del, get, list, put } from '@vercel/blob';
+import { checkAccess } from './_lib/access.js';
 
 const PREFIX = 'signatures/';
 const MAX_ITEM_BYTES = 20_000;
@@ -75,9 +77,13 @@ function isSignature(value: unknown): value is SavedSignature {
 }
 
 /** Common checks; returns the config, or the error response to send. */
-function guard(request: Request) {
+async function guard(request: Request) {
   const cfg = config();
   if (!cfg) return json({ error: 'not-configured' }, 503);
+  const access = await checkAccess(request);
+  if (access === 'not-configured') return json({ error: 'not-configured' }, 503);
+  if (access === 'session') return json({ error: 'session' }, 401);
+  if (access === 'forbidden') return json({ error: 'forbidden' }, 403);
   if (!samePassword(request.headers.get('x-team-password') ?? '', cfg.password)) {
     return json({ error: 'unauthorized' }, 401);
   }
@@ -85,7 +91,7 @@ function guard(request: Request) {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const cfg = guard(request);
+  const cfg = await guard(request);
   if (cfg instanceof Response) return cfg;
   try {
     const pathnames: string[] = [];
@@ -104,7 +110,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function PUT(request: Request): Promise<Response> {
-  const cfg = guard(request);
+  const cfg = await guard(request);
   if (cfg instanceof Response) return cfg;
   let item: unknown;
   try {
@@ -129,7 +135,7 @@ export async function PUT(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
-  const cfg = guard(request);
+  const cfg = await guard(request);
   if (cfg instanceof Response) return cfg;
   const id = new URL(request.url).searchParams.get('id');
   if (!id || !ID_PATTERN.test(id)) return json({ error: 'bad-request' }, 400);

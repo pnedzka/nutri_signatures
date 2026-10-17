@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   Info,
   LayoutGrid,
+  LogOut,
   Mail,
   Monitor,
   Palette,
@@ -25,6 +26,7 @@ import { Input } from './components/Input';
 import { Button } from './components/Button';
 import { Toasts } from './components/Toasts';
 import { HUB_URL } from './lib/hub';
+import { useAuth } from './lib/auth';
 import { SavedSignatures } from './components/SavedSignatures';
 import { useToast } from './lib/toast';
 import {
@@ -264,6 +266,7 @@ const instructions: { id: string; label: string; steps: string[] }[] = [
 
 export default function App() {
   const { overrides, update, reset } = useSignatureStore();
+  const { email, signOut } = useAuth();
   const toast = useToast();
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [guide, setGuide] = useState(instructions[0].id);
@@ -365,6 +368,15 @@ export default function App() {
               <RotateCcw size={14} />
               Wyczyść
             </Button>
+            <button
+              onClick={() => void signOut()}
+              className="inline-flex items-center justify-center gap-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 active:bg-gray-100"
+              aria-label="Wyloguj się"
+              title={email ? `Wyloguj się (${email})` : 'Wyloguj się'}
+            >
+              <LogOut size={16} />
+              <span className="hidden lg:inline">Wyloguj</span>
+            </button>
           </div>
         </div>
       </header>

@@ -1,4 +1,5 @@
 import type { SavedSignature } from './store';
+import { accessToken } from './supabase';
 
 /**
  * Client for /api/signatures, the team-wide list of saved signatures (see api/signatures.ts).
@@ -19,18 +20,28 @@ export class CloudError extends Error {
 const ENDPOINT = '/api/signatures';
 
 async function call(password: string, method: 'GET' | 'PUT' | 'DELETE', init: { body?: unknown; id?: string } = {}) {
+  const token = await accessToken();
   let res: Response;
   try {
     res = await fetch(init.id ? `${ENDPOINT}?id=${encodeURIComponent(init.id)}` : ENDPOINT, {
       method,
-      headers: { 'x-team-password': password, ...(init.body ? { 'content-type': 'application/json' } : {}) },
+      headers: {
+        'x-team-password': password,
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(init.body ? { 'content-type': 'application/json' } : {}),
+      },
       body: init.body ? JSON.stringify(init.body) : undefined,
       cache: 'no-store',
     });
   } catch {
     throw new CloudError('error');
   }
-  if (res.status === 401) throw new CloudError('locked');
+  // 401 "unauthorized" is the team password; an expired session (401 "session") or no access (403) is an error.
+  if (res.status === 401) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new CloudError(body?.error === 'unauthorized' ? 'locked' : 'error');
+  }
+  if (res.status === 403) throw new CloudError('error');
   // No serverless functions here (vite dev server, static hosting answer 404/405 or the HTML page) or functions
   // without a database (503): stay in browser-only mode.
   const isJson = (res.headers.get('content-type') ?? '').includes('application/json');
