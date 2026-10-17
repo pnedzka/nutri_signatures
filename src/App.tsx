@@ -6,6 +6,7 @@ import {
   Download,
   Image as ImageIcon,
   Info,
+  LayoutGrid,
   Mail,
   Monitor,
   Palette,
@@ -23,6 +24,7 @@ import { Card, CardBody, CardHeader } from './components/Card';
 import { Input } from './components/Input';
 import { Button } from './components/Button';
 import { Toasts } from './components/Toasts';
+import { HUB_URL } from './lib/hub';
 import { SavedSignatures } from './components/SavedSignatures';
 import { useToast } from './lib/toast';
 import {
@@ -343,14 +345,27 @@ export default function App() {
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <img src="/logo.png" alt="Nutri Partners" width={150} height={29} className="shrink-0" />
+            <a href={HUB_URL} className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CC1F1F]" title="Wszystkie aplikacje Nutri Partners">
+              <img src="/logo.png" alt="Aplikacje Nutri Partners" width={150} height={29} />
+            </a>
             <span className="hidden sm:block h-5 w-px bg-gray-200" aria-hidden="true" />
             <span className="hidden sm:block text-sm font-medium text-gray-500 truncate">Generator stopek e-mail</span>
           </div>
-          <Button variant="secondary" size="sm" onClick={handleReset} className="whitespace-nowrap">
-            <RotateCcw size={14} />
-            Wyczyść
-          </Button>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <a
+              href={HUB_URL}
+              className="inline-flex items-center justify-center gap-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 active:bg-gray-100"
+              aria-label="Wszystkie aplikacje"
+              title="Wszystkie aplikacje Nutri Partners"
+            >
+              <LayoutGrid size={16} />
+              <span className="hidden sm:inline">Wszystkie aplikacje</span>
+            </a>
+            <Button variant="secondary" size="sm" onClick={handleReset} className="whitespace-nowrap">
+              <RotateCcw size={14} />
+              Wyczyść
+            </Button>
+          </div>
         </div>
       </header>
 

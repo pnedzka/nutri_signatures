@@ -16,6 +16,7 @@ Generator stopek e-mail dla Nutri Partners. Pracownik wpisuje swoje dane (albo w
 - „Kopiuj stopkę” (do wklejenia w ustawieniach podpisu), „Kopiuj HTML”, „Pobierz .htm” (folder podpisów klasycznego Outlooka)
 - instrukcje dla Gmaila, Outlooka (nowy, web, klasyczny) i Apple Mail
 - dane z formularza zapamiętywane w przeglądarce
+- logo i przycisk „Wszystkie aplikacje” w nagłówku prowadzą do centrum aplikacji Nutri Partners (https://nutripartners.vercel.app, zmienna `VITE_HUB_URL`)
 - **zapisane stopki**: zapis wielu stopek pod własnymi nazwami, ponowne otwieranie do edycji („Zapisz zmiany” / „Zapisz jako nową”), usuwanie; eksport i import pliku `.json`; po skonfigurowaniu bazy (niżej) lista jest wspólna dla całego zespołu i chroniona hasłem, bez niej zapis jest lokalny, w `localStorage`
 
 Stopka jest zbudowana na tabelach i stylach inline (bez SVG i webfontów), dzięki czemu wygląda tak samo w Gmailu, Outlooku i Apple Mail.
