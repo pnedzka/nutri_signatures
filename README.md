@@ -6,6 +6,8 @@ Generator stopek e-mail dla Nutri Partners. Pracownik wpisuje swoje dane (albo w
 
 ## Funkcje
 
+- **logowanie wspólnym kontem Nutri Partners** (Supabase neutralizatora); wejdą administratorzy i osoby z uprawnieniem `signatures` w `profiles.apps`. Konta, reset hasła i uprawnienia są w centrum aplikacji (https://nutripartners.vercel.app → User management); bez dostępu widać komunikat i przycisk „Wszystkie aplikacje”
+
 - 3 szablony: **Nowoczesna**, **Minimalistyczna**, **Baner**
 - ikony przy telefonie, e-mailu, stronie i adresie (albo litery — do wyboru)
 - odznaki certyfikatów (ISO 9001, Organic Certified) w stopce — do wyłączenia przełącznikiem
@@ -70,13 +72,19 @@ Na `localhost` podgląd pokazuje ostrzeżenie o grafikach — to normalne, odbio
 
 ## Wspólna baza zapisanych stopek
 
-Zapisane stopki trafiają do prywatnego magazynu Vercel Blob (plik `signatures/<id>.json` na stopkę) przez funkcję `api/signatures.ts`, więc cały zespół widzi tę samą listę na każdym urządzeniu. Dostęp wymaga hasła zespołu.
+Zapisane stopki trafiają do prywatnego magazynu Vercel Blob (plik `signatures/<id>.json` na stopkę) przez funkcję `api/signatures.ts`, więc cały zespół widzi tę samą listę na każdym urządzeniu. Każde żądanie wymaga zalogowania z uprawnieniem do generatora (`api/_lib/access.ts`) i hasła zespołu.
 
 1. Vercel → projekt → **Storage** → **Create** → **Blob** z dostępem **Private**, podłączony do projektu. Vercel doda zmienną `BLOB_READ_WRITE_TOKEN`.
 2. **Settings → Environment Variables**: `TEAM_PASSWORD` z hasłem zespołu (zmiana hasła = edycja tej zmiennej i ponowne wdrożenie).
 3. Wdróż ponownie (Deployments → Redeploy), bo zmienne działają od następnego wdrożenia.
 
 Bez tych zmiennych (i przy `npm run dev`) generator działa jak wcześniej: stopki zapisują się tylko w przeglądarce. Przy pierwszym połączeniu stopki zapisane wcześniej w przeglądarce są wysyłane do bazy. Zmiany zrobione bez połączenia czekają w przeglądarce i wysyłają się przy następnym połączeniu.
+
+## Logowanie
+
+- `NEXT_PUBLIC_SUPABASE_URL` = `https://edzjkumjutffodfpasmf.supabase.co` i `NEXT_PUBLIC_SUPABASE_ANON_KEY` = publiczny klucz anon tego projektu (ustawione w Vercelu dla Production i Preview). Klucz secret nie jest potrzebny: profil czyta się jako zalogowana osoba, a RLS zwraca tylko jej wiersz.
+- Lokalnie te same wartości jako `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` w `.env.local`.
+- Dostęp: `src/lib/auth.ts` (ekran) i `api/_lib/access.ts` (API zapisanych stopek), identyfikator aplikacji `signatures`.
 
 ## Wdrożenie (Vercel)
 
