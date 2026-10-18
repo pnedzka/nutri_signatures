@@ -34,6 +34,7 @@ const hubButton = (
 
 function LoginForm() {
   const signIn = useAuth((s) => s.signIn);
+  const authError = useAuth((s) => s.error);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +57,7 @@ function LoginForm() {
     <form onSubmit={submit} className="space-y-4">
       <Input label="E-mail" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} leftIcon={<Mail size={16} />} />
       <Input label="Hasło" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} leftIcon={<Lock size={16} />} />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {(error ?? authError) && <p className="text-sm text-red-600">{error ?? authError}</p>}
       <Button type="submit" className="w-full min-h-11" isLoading={busy}>
         Zaloguj się
       </Button>

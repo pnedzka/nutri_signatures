@@ -85,6 +85,7 @@ Bez tych zmiennych (i przy `npm run dev`) generator działa jak wcześniej: stop
 - `NEXT_PUBLIC_SUPABASE_URL` = `https://edzjkumjutffodfpasmf.supabase.co` i `NEXT_PUBLIC_SUPABASE_ANON_KEY` = publiczny klucz anon tego projektu (ustawione w Vercelu dla Production i Preview). Klucz secret nie jest potrzebny: profil czyta się jako zalogowana osoba, a RLS zwraca tylko jej wiersz.
 - Lokalnie te same wartości jako `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` w `.env.local`.
 - Dostęp: `src/lib/auth.ts` (ekran) i `api/_lib/access.ts` (API zapisanych stopek), identyfikator aplikacji `signatures`.
+- **Jedno logowanie przez centrum** (od 18.10.2026): bez sesji aplikacja przekierowuje do centrum (`/sso`), które w razie potrzeby pokazuje logowanie i wraca na tę samą stronę z jednorazowym tokenem w adresie (`#sso=…`, `src/lib/sso.ts`). Wylogowanie tutaj wylogowuje też z centrum (`/logout`). Formularz logowania w aplikacji zostaje jako zapasowy, gdy token nie zadziała.
 
 ## Środowiska: dev i produkcja
 
