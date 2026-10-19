@@ -87,6 +87,8 @@ export const TEMPLATES: { id: SignatureTemplate; name: string; description: stri
  * The file is tagged 192 DPI: Outlook desktop sizes images by DPI when it drops width/height on replies and
  * forwards, so it still lands at 150×29 there. Keep any replacement at 2× and 192 DPI.
  * Override with VITE_EMAIL_LOGO_URL to load the same file from another public host.
+ * The app's own screens use public/logo-app.png (transparent background); this file keeps its white background,
+ * which stays readable in e-mail clients' dark mode.
  */
 export function defaultLogoUrl(): string {
   const fromEnv = import.meta.env.VITE_EMAIL_LOGO_URL as string | undefined;
