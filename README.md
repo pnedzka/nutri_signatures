@@ -72,13 +72,14 @@ Na `localhost` podgląd pokazuje ostrzeżenie o grafikach — to normalne, odbio
 
 ## Wspólna baza zapisanych stopek
 
-Zapisane stopki trafiają do prywatnego magazynu Vercel Blob (plik `signatures/<id>.json` na stopkę) przez funkcję `api/signatures.ts`, więc cały zespół widzi tę samą listę na każdym urządzeniu. Każde żądanie wymaga zalogowania z uprawnieniem do generatora (`api/_lib/access.ts`) i hasła zespołu.
+Zapisane stopki są w tabeli `email_signatures` wspólnej bazy Supabase aplikacji Nutri Partners (ta sama, w której się logujemy). Cały zespół widzi jedną listę na każdym urządzeniu; przy każdej stopce widać, kto zapisał ją ostatnio.
 
-1. Vercel → projekt → **Storage** → **Create** → **Blob** z dostępem **Private**, podłączony do projektu. Vercel doda zmienną `BLOB_READ_WRITE_TOKEN`.
-2. **Settings → Environment Variables**: `TEAM_PASSWORD` z hasłem zespołu (zmiana hasła = edycja tej zmiennej i ponowne wdrożenie).
-3. Wdróż ponownie (Deployments → Redeploy), bo zmienne działają od następnego wdrożenia.
+- Schemat (tabela, trigger, RLS) jest w `db/schema.sql` repo `pnedzka/nutri_documentation`. Przeglądarka czyta i zapisuje tabelę sesją zalogowanej osoby (`src/lib/cloud.ts`); row level security wpuszcza administratorów i osoby z `signatures` w `profiles.apps`. Nie ma osobnego hasła zespołu ani klucza serwera.
+- Kto i kiedy zapisał (`updated_by`, `updated_by_email`, `updated_at`) ustawia trigger w bazie, nie przeglądarka.
+- Zmiany zrobione bez połączenia czekają w przeglądarce i wysyłają się przy następnym połączeniu. Stopki zapisane wcześniej tylko w przeglądarce są wysyłane przy pierwszym połączeniu.
+- Bez Supabase albo bez tabeli (np. przed migracją bazy, przy `npm run dev` bez zmiennych) stopki zapisują się tylko w przeglądarce.
 
-Bez tych zmiennych (i przy `npm run dev`) generator działa jak wcześniej: stopki zapisują się tylko w przeglądarce. Przy pierwszym połączeniu stopki zapisane wcześniej w przeglądarce są wysyłane do bazy. Zmiany zrobione bez połączenia czekają w przeglądarce i wysyłają się przy następnym połączeniu.
+**Przeniesienie ze starego magazynu.** Wcześniej lista była w Vercel Blob. Gdy tabela jest pusta, aplikacja jednorazowo wywołuje `api/signatures-import.ts`, które przenosi tamte stopki (z tymi samymi id) jako zalogowana osoba; do niepustej tabeli nic nie dopisuje. Po przeniesieniu na produkcji można usunąć magazyn Blob `nutri-signatures-stopki`, zmienne `BLOB_READ_WRITE_TOKEN` i `TEAM_PASSWORD` oraz ten plik.
 
 ## Logowanie
 
@@ -96,7 +97,7 @@ Bez tych zmiennych (i przy `npm run dev`) generator działa jak wcześniej: stop
 | Baza Supabase | `nutri-documentation` (`edzjkumjutffodfpasmf`) | `nutri-dev` (`xmcwvpgtaxlpswxghuqq`), osobne konta testowe |
 | Zmienne w Vercelu | Production | Preview |
 
-W Preview przeglądarka używa `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, a serwer `SUPABASE_URL` / `SUPABASE_ANON_KEY` bazy dev; `VITE_HUB_URL` prowadzi do centrum dev. Magazyn Blob (`BLOB_READ_WRITE_TOKEN`) jest tylko w Production, więc w dev zapisane stopki zostają w przeglądarce i nie zmieniają wspólnej listy zespołu.
+W Preview przeglądarka używa `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, a serwer `SUPABASE_URL` / `SUPABASE_ANON_KEY` bazy dev; `VITE_HUB_URL` prowadzi do centrum dev. Zapisane stopki w dev trafiają do tabeli `email_signatures` bazy `nutri-dev`, więc nie zmieniają listy zespołu na produkcji.
 
 1. **Praca:** gałąź od `develop` i PR do `develop` (squash). Każdy PR ma własny podgląd; po scaleniu zmiana jest pod stałym adresem dev.
 2. **Wydanie na produkcję** (na polecenie właściciela): PR `develop` → `main`, scalany **merge commitem**, nie squashem, żeby gałęzie się nie rozjechały. Vercel wdraża `main` w ok. minutę. Cofnięcie: Vercel → Deployments → poprzednie wdrożenie → Instant Rollback.

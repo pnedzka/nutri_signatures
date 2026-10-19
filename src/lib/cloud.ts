@@ -1,13 +1,14 @@
 import type { SavedSignature } from './store';
-import { accessToken } from './supabase';
+import { accessToken, supabase } from './supabase';
 
 /**
- * Client for /api/signatures, the team-wide list of saved signatures (see api/signatures.ts).
- * - off: the API is not set up (no database or TEAM_PASSWORD, or the local dev server) → browser-only mode
- * - locked: the team password is missing or wrong
- * - error: the API or the database did not answer; changes wait locally and are sent on the next sync
+ * The team-wide list of saved signatures: table `email_signatures` in the shared Nutri Partners Supabase (schema in
+ * `db/schema.sql` of pnedzka/nutri_documentation). Read and written in the browser with the signed-in user's
+ * session; row level security lets in administrators and people with `signatures` in `profiles.apps`.
+ * - off: no Supabase here, or the table does not exist yet → saved signatures stay in this browser
+ * - error: Supabase did not answer or refused; changes wait locally and are sent on the next sync
  */
-export type CloudStatus = 'checking' | 'off' | 'locked' | 'ready' | 'error';
+export type CloudStatus = 'checking' | 'off' | 'ready' | 'error';
 
 export class CloudError extends Error {
   readonly status: Exclude<CloudStatus, 'checking' | 'ready'>;
@@ -17,49 +18,84 @@ export class CloudError extends Error {
   }
 }
 
-const ENDPOINT = '/api/signatures';
+const TABLE = 'email_signatures';
 
-async function call(password: string, method: 'GET' | 'PUT' | 'DELETE', init: { body?: unknown; id?: string } = {}) {
+interface Row {
+  id: string;
+  name: string;
+  overrides: SavedSignature['overrides'] | null;
+  updated_at: string;
+  updated_by_email: string | null;
+}
+
+function client() {
+  if (!supabase) throw new CloudError('off');
+  return supabase;
+}
+
+function fail(error: { code?: string }): never {
+  // PGRST205 / 42P01: the table is not there yet (database not migrated), so work as before, in the browser.
+  throw new CloudError(error.code === 'PGRST205' || error.code === '42P01' ? 'off' : 'error');
+}
+
+export async function fetchSignatures(): Promise<SavedSignature[]> {
+  let result;
+  try {
+    result = await client()
+      .from(TABLE)
+      .select('id, name, overrides, updated_at, updated_by_email')
+      .order('updated_at', { ascending: false });
+  } catch (e) {
+    throw e instanceof CloudError ? e : new CloudError('error');
+  }
+  if (result.error) fail(result.error);
+  return (result.data as Row[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    overrides: r.overrides ?? {},
+    updatedAt: r.updated_at,
+    updatedBy: r.updated_by_email ?? undefined,
+  }));
+}
+
+/** Inserts or updates; the database records who saved it and when (a trigger, not the browser). */
+export async function putSignature(signature: SavedSignature): Promise<void> {
+  const { error } = await client()
+    .from(TABLE)
+    .upsert(
+      { id: signature.id, name: signature.name, overrides: signature.overrides, updated_at: signature.updatedAt },
+      { onConflict: 'id' }
+    );
+  if (error) fail(error);
+}
+
+export async function deleteSignature(id: string): Promise<void> {
+  const { error } = await client().from(TABLE).delete().eq('id', id);
+  if (error) fail(error);
+}
+
+/**
+ * One-time move of the signatures saved in Vercel Blob before the database (api/signatures-import.ts). The server
+ * imports only into an empty table, so calling it again does nothing. Returns how many were added: 0 also when
+ * there is nothing to move here (no Blob store, local dev server), null when the move failed and must be retried.
+ */
+export async function importFromBlob(): Promise<number | null> {
   const token = await accessToken();
+  if (!token) return null;
   let res: Response;
   try {
-    res = await fetch(init.id ? `${ENDPOINT}?id=${encodeURIComponent(init.id)}` : ENDPOINT, {
-      method,
-      headers: {
-        'x-team-password': password,
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-        ...(init.body ? { 'content-type': 'application/json' } : {}),
-      },
-      body: init.body ? JSON.stringify(init.body) : undefined,
+    res = await fetch('/api/signatures-import', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
       cache: 'no-store',
     });
   } catch {
-    throw new CloudError('error');
+    return null;
   }
-  // 401 "unauthorized" is the team password; an expired session (401 "session") or no access (403) is an error.
-  if (res.status === 401) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new CloudError(body?.error === 'unauthorized' ? 'locked' : 'error');
-  }
-  if (res.status === 403) throw new CloudError('error');
-  // No serverless functions here (vite dev server, static hosting answer 404/405 or the HTML page) or functions
-  // without a database (503): stay in browser-only mode.
   const isJson = (res.headers.get('content-type') ?? '').includes('application/json');
-  if (res.status === 404 || res.status === 405 || res.status === 503 || (res.ok && !isJson)) throw new CloudError('off');
-  if (!res.ok) throw new CloudError('error');
-  return res.json() as Promise<unknown>;
-}
-
-export async function fetchSignatures(password: string): Promise<SavedSignature[]> {
-  const data = (await call(password, 'GET')) as { signatures?: SavedSignature[] };
-  if (!Array.isArray(data.signatures)) throw new CloudError('error');
-  return data.signatures;
-}
-
-export async function putSignature(password: string, signature: SavedSignature): Promise<void> {
-  await call(password, 'PUT', { body: { signature } });
-}
-
-export async function deleteSignature(password: string, id: string): Promise<void> {
-  await call(password, 'DELETE', { id });
+  // 404/405 or the HTML page: no serverless functions (vite dev server); 503: no Blob store (dev environment).
+  if (res.status === 404 || res.status === 405 || res.status === 503 || (res.ok && !isJson)) return 0;
+  if (!res.ok) return null;
+  const body = (await res.json().catch(() => null)) as { imported?: number } | null;
+  return typeof body?.imported === 'number' ? body.imported : null;
 }
