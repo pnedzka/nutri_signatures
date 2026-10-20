@@ -12,6 +12,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { del, get, list, put } from '@vercel/blob';
 import { checkAccess } from './_lib/access.js';
+import { logError, monitored } from './_lib/monitoring.js';
 
 const PREFIX = 'signatures/';
 const MAX_ITEM_BYTES = 20_000;
@@ -90,7 +91,7 @@ async function guard(request: Request) {
   return cfg;
 }
 
-export async function GET(request: Request): Promise<Response> {
+export const GET = monitored('signatures.list', async (request) => {
   const cfg = await guard(request);
   if (cfg instanceof Response) return cfg;
   try {
@@ -104,12 +105,13 @@ export async function GET(request: Request): Promise<Response> {
     const signatures = (await Promise.all(pathnames.map(readSignature))).filter((s): s is SavedSignature => s !== null);
     signatures.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return json({ signatures });
-  } catch {
+  } catch (error) {
+    logError('signatures.list', error);
     return json({ error: 'storage' }, 502);
   }
-}
+});
 
-export async function PUT(request: Request): Promise<Response> {
+export const PUT = monitored('signatures.save', async (request) => {
   const cfg = await guard(request);
   if (cfg instanceof Response) return cfg;
   let item: unknown;
@@ -129,12 +131,13 @@ export async function PUT(request: Request): Promise<Response> {
       contentType: 'application/json',
     });
     return json({ ok: true });
-  } catch {
+  } catch (error) {
+    logError('signatures.save', error);
     return json({ error: 'storage' }, 502);
   }
-}
+});
 
-export async function DELETE(request: Request): Promise<Response> {
+export const DELETE = monitored('signatures.delete', async (request) => {
   const cfg = await guard(request);
   if (cfg instanceof Response) return cfg;
   const id = new URL(request.url).searchParams.get('id');
@@ -142,7 +145,8 @@ export async function DELETE(request: Request): Promise<Response> {
   try {
     await del(pathFor(id));
     return json({ ok: true });
-  } catch {
+  } catch (error) {
+    logError('signatures.delete', error);
     return json({ error: 'storage' }, 502);
   }
-}
+});
