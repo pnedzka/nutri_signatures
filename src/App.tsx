@@ -349,7 +349,7 @@ export default function App() {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <a href={HUB_URL} className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CC1F1F]" title="Wszystkie aplikacje Nutri Partners">
-              <img src="/logo.png" alt="Aplikacje Nutri Partners" width={150} height={29} />
+              <img src="/logo-app.png" alt="Aplikacje Nutri Partners" width={150} height={29} />
             </a>
             <span className="hidden sm:block h-5 w-px bg-gray-200" aria-hidden="true" />
             <span className="hidden sm:block text-sm font-medium text-gray-500 truncate">Generator stopek e-mail</span>

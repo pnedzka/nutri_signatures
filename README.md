@@ -105,6 +105,13 @@ W Preview przeglądarka używa `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, a
 
 Darmowa baza dev usypia się po 7 dniach bez użycia. Wybudzenie: Supabase → projekt `nutri-dev` → Restore (ok. minuty).
 
+## Monitorowanie
+
+- Błędy przeglądarki i serwera trafiają do **Sentry** (wspólny projekt aplikacji Nutri Partners, tag `app: signatures`), gdy ustawione są `SENTRY_DSN` (serwer) i `VITE_SENTRY_DSN` (przeglądarka), ta sama wartość, w Production i Preview. Bez nich nic nie jest wysyłane.
+- Serwer: `api/_lib/monitoring.ts` (`logError`, `monitored` dla handlerów API: nieoczekiwany błąd → 500 i zgłoszenie). Przeglądarka: `src/lib/monitoring.ts`.
+- Do Sentry nie trafiają ciasteczka, nagłówki, treść żądań ani fragment adresu (`#sso=…`). Osobę opisuje id konta i e-mail.
+- Szczegóły i alerty: README centrum, „Monitorowanie i błędy”.
+
 ## Wdrożenie (Vercel)
 
 1. vercel.com → **Add New → Project** → wybierz repozytorium `nutri_signatures`.

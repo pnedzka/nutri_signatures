@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
+import { setMonitoringUser } from './monitoring';
 import { signInViaHub, signOutOfHub, ssoDone, takeSsoToken } from './sso';
 import { APP_ID, supabase } from './supabase';
 
@@ -35,9 +36,11 @@ export const useAuth = create<AuthState>((set) => {
   async function check(session: Session | null) {
     if (!session) {
       set({ status: 'signedOut', email: null });
+      setMonitoringUser(null);
       return;
     }
     const email = (session.user.email ?? '').toLowerCase();
+    setMonitoringUser({ id: session.user.id, email });
     // Row level security returns only the user's own row.
     const { data, error } = await supabase!.from('profiles').select('role, apps').eq('id', session.user.id).maybeSingle();
     if (error) {
@@ -91,6 +94,7 @@ export const useAuth = create<AuthState>((set) => {
       signingOut = true;
       await supabase?.auth.signOut();
       set({ status: 'signedOut', email: null });
+      setMonitoringUser(null);
       signOutOfHub();
     },
   };
