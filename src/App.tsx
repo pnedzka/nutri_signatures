@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Check,
   Code,
@@ -18,6 +18,7 @@ import {
   Smartphone,
   TriangleAlert,
   User as UserIcon,
+  UserCheck,
   Users,
 } from 'lucide-react';
 import { useSignatureStore } from './lib/store';
@@ -28,6 +29,7 @@ import { Toasts } from './components/Toasts';
 import { HUB_URL } from './lib/hub';
 import { useAuth } from './lib/auth';
 import { SavedSignatures } from './components/SavedSignatures';
+import { profileFields } from './lib/profile';
 import { useToast } from './lib/toast';
 import {
   ACCENT_PRESETS,
@@ -271,6 +273,15 @@ export default function App() {
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [guide, setGuide] = useState(instructions[0].id);
   const [copied, setCopied] = useState<'rich' | 'html' | null>(null);
+  // The person's details from My profile in the hub; an empty form is filled with them on start.
+  const [profile, setProfile] = useState<Partial<SignatureData> | null>(null);
+  useEffect(() => {
+    void profileFields().then((fields) => {
+      setProfile(fields);
+      const { overrides: current, currentId } = useSignatureStore.getState();
+      if (fields && !currentId && Object.keys(current).length === 0) update(fields);
+    });
+  }, [update]);
 
   const data = useMemo<SignatureData>(() => ({ ...defaults(), ...overrides }), [overrides]);
   const isSample = !data.fullName.trim();
@@ -334,6 +345,12 @@ export default function App() {
   const handleReset = () => {
     reset();
     toast.info('Formularz wyczyszczony');
+  };
+
+  const handleFillFromProfile = () => {
+    if (!profile) return;
+    update(profile);
+    toast.success('Uzupełniono z profilu', 'Dane pochodzą z „My profile” w centrum aplikacji.');
   };
 
   const handleSelectEmployee = (index: number) => {
@@ -425,6 +442,15 @@ export default function App() {
             )}
 
             <Section icon={<UserIcon size={16} />} title="Dane osobowe">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <Button variant="secondary" size="sm" onClick={handleFillFromProfile} disabled={!profile} className="min-h-11 sm:min-h-0">
+                  <UserCheck size={14} />
+                  Uzupełnij z mojego profilu
+                </Button>
+                <a href={`${HUB_URL}/profile`} className="text-xs text-gray-500 hover:text-[#CC1F1F] underline underline-offset-2">
+                  Zmień dane w profilu w centrum
+                </a>
+              </div>
               <Input id="sig-name" label="Imię i nazwisko" placeholder="Jan Kowalski" {...field('fullName')} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input id="sig-position" label="Stanowisko" placeholder="Key Account Manager" {...field('position')} />
