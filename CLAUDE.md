@@ -16,6 +16,7 @@ Wspólne zasady, zmienne, procedura wydań i pułapki są w `CLAUDE.md` repo `pn
 | Zmienne w Vercelu | Production | Preview: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` (baza dev), `VITE_HUB_URL` (centrum dev) |
 
 - `BLOB_READ_WRITE_TOKEN` jest tylko w Production i Development. W dev zapisane stopki zostają więc w przeglądarce i nie zmieniają wspólnej listy zespołu. Nie dodawać go do Preview.
+- Wspólną listę zapisanych stopek widzi każdy z dostępem do generatora (logowanie + `signatures`). Hasło zespołu (`TEAM_PASSWORD`) usunięte 21.10.2026: przeglądarka pamiętała je osobno, więc osoby bez hasła widziały tylko własną, lokalną listę.
 - Wydanie tylko po „wdrażaj”: PR `develop` → `main` scalany merge commitem, potem sprawdzić wdrożenie produkcyjne.
 
 ## Monitorowanie (od 20.10.2026)

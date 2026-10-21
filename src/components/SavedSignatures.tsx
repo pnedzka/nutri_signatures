@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, Cloud, CloudOff, FileDown, FileUp, FolderOpen, Lock, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { Bookmark, Cloud, CloudOff, FileDown, FileUp, FolderOpen, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { Card, CardBody, CardHeader } from './Card';
 import { Button } from './Button';
 import { Input } from './Input';
@@ -23,7 +23,6 @@ export function SavedSignatures({ suggestedName }: { suggestedName: string }) {
   const { overrides, currentId, saved, saveAs, saveCurrent, open, remove, importMany, cloud, connect } =
     useSignatureStore();
   const toast = useToast();
-  const [password, setPassword] = useState('');
   const shared = cloud === 'ready';
 
   // Load the team list on start and when the tab comes back into focus (a colleague may have changed it), at most
@@ -42,18 +41,6 @@ export function SavedSignatures({ suggestedName }: { suggestedName: string }) {
     return () => window.removeEventListener('focus', onFocus);
   }, []);
 
-  const submitPassword = async () => {
-    if (!password.trim()) return;
-    const status = await connect(password.trim());
-    if (status === 'ready') {
-      setPassword('');
-      toast.success('Połączono z bazą stopek', 'Widzisz teraz wspólne stopki całego zespołu.');
-    } else if (status === 'locked') {
-      toast.error('Nieprawidłowe hasło', 'Sprawdź hasło zespołu i spróbuj ponownie.');
-    } else {
-      toast.error('Brak połączenia z bazą', 'Spróbuj ponownie za chwilę.');
-    }
-  };
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
   // Inline confirmation for destructive actions: which row asks, and what for.
@@ -246,36 +233,6 @@ export function SavedSignatures({ suggestedName }: { suggestedName: string }) {
           </ul>
         )}
 
-        {cloud === 'locked' && (
-          <form
-            className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submitPassword();
-            }}
-          >
-            <p className="flex items-start gap-2 text-xs text-gray-600">
-              <Lock size={14} className="shrink-0 mt-0.5" />
-              Podaj hasło zespołu, aby zobaczyć wspólne stopki firmy i zapisywać je w bazie.
-            </p>
-            <div className="flex items-end gap-2">
-              <div className="flex-1 min-w-0">
-                <Input
-                  id="team-password"
-                  label="Hasło zespołu"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <Button type="submit" disabled={!password.trim()}>
-                Połącz
-              </Button>
-            </div>
-          </form>
-        )}
-
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <StorageNote status={cloud} onRetry={() => void connect()} />
           <div className="flex gap-1">
@@ -326,6 +283,5 @@ function StorageNote({ status, onRetry }: { status: ReturnType<typeof useSignatu
       </p>
     );
   }
-  if (status === 'locked') return <p className="text-xs text-gray-500">Bez hasła stopki zapisują się tylko w tej przeglądarce.</p>;
   return <p className="text-xs text-gray-500">Stopki zapisują się w tej przeglądarce.</p>;
 }

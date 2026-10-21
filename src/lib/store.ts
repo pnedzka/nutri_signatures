@@ -31,14 +31,13 @@ interface SignatureStore {
   importMany: (items: SavedSignature[]) => number;
 
   cloud: CloudStatus;
-  teamPassword: string;
   /** Ids saved or changed locally and not yet sent to the team database. */
   pending: string[];
   pendingDeletes: string[];
   /** Whether signatures saved before the database existed were already uploaded. */
   cloudMigrated: boolean;
-  /** Loads the team list (optionally with a new password); first uploads anything waiting locally. */
-  connect: (password?: string) => Promise<CloudStatus>;
+  /** Loads the team list; first uploads anything waiting locally. */
+  connect: () => Promise<CloudStatus>;
   /** Sends queued changes; no-op unless connected. */
   flush: () => Promise<void>;
 }
@@ -105,16 +104,13 @@ export const useSignatureStore = create<SignatureStore>()(
       },
 
       cloud: 'checking',
-      teamPassword: '',
       pending: [],
       pendingDeletes: [],
       cloudMigrated: false,
 
-      connect: async (password) => {
-        if (password !== undefined) set({ teamPassword: password });
-        const pass = get().teamPassword;
+      connect: async () => {
         try {
-          const remote = await fetchSignatures(pass);
+          const remote = await fetchSignatures();
           if (!get().cloudMigrated) {
             // First connection from this browser: upload what was saved here before the database existed.
             const remoteIds = new Set(remote.map((r) => r.id));
@@ -126,7 +122,7 @@ export const useSignatureStore = create<SignatureStore>()(
           set({ cloud: 'ready' });
           await get().flush();
           if (get().cloud !== 'ready') return get().cloud;
-          const fresh = get().pending.length || get().pendingDeletes.length ? null : await fetchSignatures(pass);
+          const fresh = get().pending.length || get().pendingDeletes.length ? null : await fetchSignatures();
           if (fresh) {
             set((state) => ({
               saved: fresh,
@@ -143,15 +139,14 @@ export const useSignatureStore = create<SignatureStore>()(
 
       flush: async () => {
         if (get().cloud !== 'ready') return;
-        const pass = get().teamPassword;
         try {
           for (const id of get().pendingDeletes) {
-            await deleteSignature(pass, id);
+            await deleteSignature(id);
             set((state) => ({ pendingDeletes: state.pendingDeletes.filter((d) => d !== id) }));
           }
           for (const id of get().pending) {
             const item = get().saved.find((s) => s.id === id);
-            if (item) await putSignature(pass, item);
+            if (item) await putSignature(item);
             set((state) => ({ pending: state.pending.filter((p) => p !== id) }));
           }
         } catch (e) {
@@ -162,8 +157,12 @@ export const useSignatureStore = create<SignatureStore>()(
     {
       name: 'np-email-signature',
       // The connection status is runtime state; everything else (including the queue) survives a reload.
+      // teamPassword is what older versions kept here; it is dropped on the next save.
       partialize: (state) =>
-        Object.fromEntries(Object.entries(state).filter(([key]) => key !== 'cloud')) as Omit<SignatureStore, 'cloud'>,
+        Object.fromEntries(Object.entries(state).filter(([key]) => key !== 'cloud' && key !== 'teamPassword')) as Omit<
+          SignatureStore,
+          'cloud'
+        >,
     }
   )
 );
