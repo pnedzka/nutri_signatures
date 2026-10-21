@@ -7,6 +7,7 @@ Generator stopek e-mail dla Nutri Partners. Pracownik wpisuje swoje dane (albo w
 ## Funkcje
 
 - **logowanie wspólnym kontem Nutri Partners** (Supabase neutralizatora); wejdą administratorzy i osoby z uprawnieniem `signatures` w `profiles.apps`. Konta, reset hasła i uprawnienia są w centrum aplikacji (https://nutripartners.vercel.app → User management); bez dostępu widać komunikat i przycisk „Wszystkie aplikacje”
+- **dane z profilu w centrum** (od 21.10.2026): pusty formularz wypełnia się danymi z „My profile” w centrum (imię i nazwisko, stanowisko, dział, telefony, e-mail logowania, LinkedIn, adres biura z listy biur); przycisk „Uzupełnij z mojego profilu” robi to na żądanie. Dane czyta przeglądarka jako zalogowana osoba (`src/lib/profile.ts`: własny wiersz `profiles` i tabela `offices`). Zdjęcia z profilu nie są używane, bo stopka potrzebuje publicznego linku
 
 - 3 szablony: **Nowoczesna**, **Minimalistyczna**, **Baner**
 - ikony przy telefonie, e-mailu, stronie i adresie (albo litery — do wyboru)

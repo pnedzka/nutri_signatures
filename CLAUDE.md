@@ -18,6 +18,10 @@ Wspólne zasady, zmienne, procedura wydań i pułapki są w `CLAUDE.md` repo `pn
 - `BLOB_READ_WRITE_TOKEN` jest tylko w Production i Development. W dev zapisane stopki zostają więc w przeglądarce i nie zmieniają wspólnej listy zespołu. Nie dodawać go do Preview.
 - Wydanie tylko po „wdrażaj”: PR `develop` → `main` scalany merge commitem, potem sprawdzić wdrożenie produkcyjne.
 
+## Dane z profilu (od 21.10.2026)
+
+- Formularz wypełnia się z „My profile” centrum (`src/lib/profile.ts`, kolumny `profiles` i tabela `offices` z `db/schema.sql` repo `nutri_hub`). Bez tych kolumn w bazie (np. przed wydaniem schematu) zapytanie się nie udaje i formularz po prostu zostaje pusty. Wydawać po schemacie centrum.
+
 ## Monitorowanie (od 20.10.2026)
 
 - Sentry: `SENTRY_DSN` + `VITE_SENTRY_DSN` w Production i Preview; na serwerze `logError` zamiast `console.error`, handlery API opakowane w `monitored` (`api/_lib/monitoring.ts`). Całość opisuje README centrum, „Monitorowanie i błędy”.
