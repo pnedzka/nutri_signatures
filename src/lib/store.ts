@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SignatureData } from './signature';
-import { CloudError, deleteSignature, fetchSignatures, importFromBlob, putSignature, type CloudStatus } from './cloud';
+import { CloudError, deleteSignature, fetchSignatures, putSignature, type CloudStatus } from './cloud';
 
 /** A signature the user saved under a name so they can come back and edit it later. */
 export interface SavedSignature {
@@ -65,16 +65,7 @@ export const useSignatureStore = create<SignatureStore>()(
 
       async function sync(): Promise<CloudStatus> {
         try {
-          let remote = await fetchSignatures();
-          if (remote.length === 0) {
-            // Empty table: first bring over the list saved in Vercel Blob before the database. Until that worked,
-            // upload nothing from here, or the table would no longer be empty and the old list would stay behind.
-            if ((await importFromBlob()) === null) {
-              set({ cloud: 'error' });
-              return 'error';
-            }
-            remote = await fetchSignatures();
-          }
+          const remote = await fetchSignatures();
           if (!get().supabaseSynced) {
             // First connection from this browser: upload what was saved only here.
             const remoteIds = new Set(remote.map((r) => r.id));

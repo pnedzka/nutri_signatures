@@ -1,5 +1,5 @@
 import type { SavedSignature } from './store';
-import { accessToken, supabase } from './supabase';
+import { supabase } from './supabase';
 
 /**
  * The team-wide list of saved signatures: table `email_signatures` in the shared Nutri Partners Supabase (schema in
@@ -72,30 +72,4 @@ export async function putSignature(signature: SavedSignature): Promise<void> {
 export async function deleteSignature(id: string): Promise<void> {
   const { error } = await client().from(TABLE).delete().eq('id', id);
   if (error) fail(error);
-}
-
-/**
- * One-time move of the signatures saved in Vercel Blob before the database (api/signatures-import.ts). The server
- * imports only into an empty table, so calling it again does nothing. Returns how many were added: 0 also when
- * there is nothing to move here (no Blob store, local dev server), null when the move failed and must be retried.
- */
-export async function importFromBlob(): Promise<number | null> {
-  const token = await accessToken();
-  if (!token) return null;
-  let res: Response;
-  try {
-    res = await fetch('/api/signatures-import', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${token}` },
-      cache: 'no-store',
-    });
-  } catch {
-    return null;
-  }
-  const isJson = (res.headers.get('content-type') ?? '').includes('application/json');
-  // 404/405 or the HTML page: no serverless functions (vite dev server); 503: no Blob store (dev environment).
-  if (res.status === 404 || res.status === 405 || res.status === 503 || (res.ok && !isJson)) return 0;
-  if (!res.ok) return null;
-  const body = (await res.json().catch(() => null)) as { imported?: number } | null;
-  return typeof body?.imported === 'number' ? body.imported : null;
 }
