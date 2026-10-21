@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SignatureData } from './signature';
-import { CloudError, deleteSignature, fetchSignatures, putSignature, type CloudStatus } from './cloud';
+import { CloudError, deleteSignature, fetchSignatures, importFromBlob, putSignature, type CloudStatus } from './cloud';
 
 /** A signature the user saved under a name so they can come back and edit it later. */
 export interface SavedSignature {
@@ -10,11 +10,13 @@ export interface SavedSignature {
   /** Only the fields that differ from the defaults, same as the live form state. */
   overrides: Partial<SignatureData>;
   updatedAt: string;
+  /** E-mail of the person who saved it last (team database only). */
+  updatedBy?: string;
 }
 
-// The form and a copy of the saved signatures live in this browser's localStorage. When the team database is set
-// up (api/signatures.ts) the saved list is shared: changes are queued in pending/pendingDeletes and sent by flush(),
-// so nothing is lost while offline, and connect() replaces the local copy with the team list.
+// The form and a copy of the saved signatures live in this browser's localStorage. The saved list itself is shared
+// by the team in Supabase (lib/cloud.ts): changes are queued in pending/pendingDeletes and sent by flush(), so
+// nothing is lost while offline, and connect() replaces the local copy with the team list.
 interface SignatureStore {
   overrides: Partial<SignatureData>;
   /** Saved signature currently open in the form, if any. */
@@ -31,102 +33,60 @@ interface SignatureStore {
   importMany: (items: SavedSignature[]) => number;
 
   cloud: CloudStatus;
-  teamPassword: string;
   /** Ids saved or changed locally and not yet sent to the team database. */
   pending: string[];
   pendingDeletes: string[];
-  /** Whether signatures saved before the database existed were already uploaded. */
-  cloudMigrated: boolean;
-  /** Loads the team list (optionally with a new password); first uploads anything waiting locally. */
-  connect: (password?: string) => Promise<CloudStatus>;
+  /** Whether signatures saved only in this browser were already uploaded to the Supabase table. */
+  supabaseSynced: boolean;
+  /** Loads the team list; first uploads anything waiting locally. */
+  connect: () => Promise<CloudStatus>;
   /** Sends queued changes; no-op unless connected. */
   flush: () => Promise<void>;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The table's id column is a uuid. */
 function newId(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // randomUUID needs a secure context (https or localhost); build a version 4 uuid by hand elsewhere.
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
 export const useSignatureStore = create<SignatureStore>()(
   persist(
-    (set, get) => ({
-      overrides: {},
-      currentId: null,
-      saved: [],
-      update: (patch) => set((state) => ({ overrides: { ...state.overrides, ...patch } })),
-      reset: () => set({ overrides: {}, currentId: null }),
-      saveAs: (name) => {
-        const item: SavedSignature = {
-          id: newId(),
-          name: name.trim(),
-          overrides: { ...get().overrides },
-          updatedAt: new Date().toISOString(),
-        };
-        set((state) => ({ saved: [item, ...state.saved], currentId: item.id, ...queued(state, [item.id]) }));
-        void get().flush();
-      },
-      saveCurrent: () => {
-        const { currentId, overrides } = get();
-        if (!currentId) return;
-        set((state) => ({
-          saved: state.saved.map((s) =>
-            s.id === currentId ? { ...s, overrides: { ...overrides }, updatedAt: new Date().toISOString() } : s
-          ),
-          ...queued(state, [currentId]),
-        }));
-        void get().flush();
-      },
-      open: (id) => {
-        const item = get().saved.find((s) => s.id === id);
-        if (item) set({ overrides: { ...item.overrides }, currentId: id });
-      },
-      remove: (id) => {
-        set((state) => ({
-          saved: state.saved.filter((s) => s.id !== id),
-          currentId: state.currentId === id ? null : state.currentId,
-          pending: state.pending.filter((p) => p !== id),
-          pendingDeletes: [...new Set([...state.pendingDeletes, id])],
-        }));
-        void get().flush();
-      },
-      importMany: (items) => {
-        set((state) => {
-          const byId = new Map(state.saved.map((s) => [s.id, s]));
-          for (const item of items) byId.set(item.id, item);
-          return {
-            saved: [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
-            ...queued(state, items.map((i) => i.id)),
-          };
-        });
-        void get().flush();
-        return items.length;
-      },
+    (set, get) => {
+      /** The sync in progress, shared by everyone who asks for one meanwhile. */
+      let connecting: Promise<CloudStatus> | null = null;
 
-      cloud: 'checking',
-      teamPassword: '',
-      pending: [],
-      pendingDeletes: [],
-      cloudMigrated: false,
-
-      connect: async (password) => {
-        if (password !== undefined) set({ teamPassword: password });
-        const pass = get().teamPassword;
+      async function sync(): Promise<CloudStatus> {
         try {
-          const remote = await fetchSignatures(pass);
-          if (!get().cloudMigrated) {
-            // First connection from this browser: upload what was saved here before the database existed.
+          let remote = await fetchSignatures();
+          if (remote.length === 0) {
+            // Empty table: first bring over the list saved in Vercel Blob before the database. Until that worked,
+            // upload nothing from here, or the table would no longer be empty and the old list would stay behind.
+            if ((await importFromBlob()) === null) {
+              set({ cloud: 'error' });
+              return 'error';
+            }
+            remote = await fetchSignatures();
+          }
+          if (!get().supabaseSynced) {
+            // First connection from this browser: upload what was saved only here.
             const remoteIds = new Set(remote.map((r) => r.id));
             set((state) => ({
-              cloudMigrated: true,
+              supabaseSynced: true,
               ...queued(state, state.saved.filter((s) => !remoteIds.has(s.id)).map((s) => s.id)),
             }));
           }
           set({ cloud: 'ready' });
           await get().flush();
           if (get().cloud !== 'ready') return get().cloud;
-          const fresh = get().pending.length || get().pendingDeletes.length ? null : await fetchSignatures(pass);
+          const fresh = get().pending.length || get().pendingDeletes.length ? null : await fetchSignatures();
           if (fresh) {
             set((state) => ({
               saved: fresh,
@@ -139,34 +99,120 @@ export const useSignatureStore = create<SignatureStore>()(
           set({ cloud: status });
           return status;
         }
-      },
+      }
 
-      flush: async () => {
-        if (get().cloud !== 'ready') return;
-        const pass = get().teamPassword;
-        try {
-          for (const id of get().pendingDeletes) {
-            await deleteSignature(pass, id);
-            set((state) => ({ pendingDeletes: state.pendingDeletes.filter((d) => d !== id) }));
+      return {
+        overrides: {},
+        currentId: null,
+        saved: [],
+        update: (patch) => set((state) => ({ overrides: { ...state.overrides, ...patch } })),
+        reset: () => set({ overrides: {}, currentId: null }),
+        saveAs: (name) => {
+          const item: SavedSignature = {
+            id: newId(),
+            name: name.trim(),
+            overrides: { ...get().overrides },
+            updatedAt: new Date().toISOString(),
+          };
+          set((state) => ({ saved: [item, ...state.saved], currentId: item.id, ...queued(state, [item.id]) }));
+          void get().flush();
+        },
+        saveCurrent: () => {
+          const { currentId, overrides } = get();
+          if (!currentId) return;
+          set((state) => ({
+            saved: state.saved.map((s) =>
+              s.id === currentId ? { ...s, overrides: { ...overrides }, updatedAt: new Date().toISOString() } : s
+            ),
+            ...queued(state, [currentId]),
+          }));
+          void get().flush();
+        },
+        open: (id) => {
+          const item = get().saved.find((s) => s.id === id);
+          if (item) set({ overrides: { ...item.overrides }, currentId: id });
+        },
+        remove: (id) => {
+          set((state) => ({
+            saved: state.saved.filter((s) => s.id !== id),
+            currentId: state.currentId === id ? null : state.currentId,
+            pending: state.pending.filter((p) => p !== id),
+            pendingDeletes: [...new Set([...state.pendingDeletes, id])],
+          }));
+          void get().flush();
+        },
+        importMany: (items) => {
+          set((state) => {
+            const byId = new Map(state.saved.map((s) => [s.id, s]));
+            for (const item of items) byId.set(item.id, item);
+            return {
+              saved: [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+              ...queued(state, items.map((i) => i.id)),
+            };
+          });
+          void get().flush();
+          return items.length;
+        },
+
+        cloud: 'checking',
+        pending: [],
+        pendingDeletes: [],
+        supabaseSynced: false,
+
+        // Calls while a sync is running (React StrictMode, a focus event) wait for that one instead of starting another.
+        connect: () => (connecting ??= sync().finally(() => (connecting = null))),
+
+        flush: async () => {
+          if (get().cloud !== 'ready') return;
+          try {
+            for (const id of get().pendingDeletes) {
+              if (UUID.test(id)) await deleteSignature(id);
+              set((state) => ({ pendingDeletes: state.pendingDeletes.filter((d) => d !== id) }));
+            }
+            for (const id of get().pending) {
+              let item = get().saved.find((s) => s.id === id);
+              if (item && !UUID.test(item.id)) {
+                // Saved by an older version with a non-uuid id: give it a uuid before it goes to the table.
+                const renamed = { ...item, id: newId() };
+                set((state) => ({
+                  saved: state.saved.map((s) => (s.id === id ? renamed : s)),
+                  currentId: state.currentId === id ? renamed.id : state.currentId,
+                }));
+                item = renamed;
+              }
+              if (item) await putSignature(item);
+              set((state) => ({ pending: state.pending.filter((p) => p !== id) }));
+            }
+          } catch (e) {
+            set({ cloud: e instanceof CloudError ? e.status : 'error' });
           }
-          for (const id of get().pending) {
-            const item = get().saved.find((s) => s.id === id);
-            if (item) await putSignature(pass, item);
-            set((state) => ({ pending: state.pending.filter((p) => p !== id) }));
-          }
-        } catch (e) {
-          set({ cloud: e instanceof CloudError ? e.status : 'error' });
-        }
-      },
-    }),
+        },
+      };
+    },
     {
       name: 'np-email-signature',
-      // The connection status is runtime state; everything else (including the queue) survives a reload.
-      partialize: (state) =>
-        Object.fromEntries(Object.entries(state).filter(([key]) => key !== 'cloud')) as Omit<SignatureStore, 'cloud'>,
+      // The connection status is runtime state; the form, the list and the queue survive a reload. Version 1 drops
+      // the team password and the Blob-era flag of version 0.
+      version: 1,
+      migrate: (persisted) => {
+        const { teamPassword: _password, cloudMigrated: _migrated, ...rest } = (persisted ?? {}) as Record<string, unknown>;
+        void _password;
+        void _migrated;
+        return rest as unknown as Persisted;
+      },
+      partialize: ({ overrides, currentId, saved, pending, pendingDeletes, supabaseSynced }) => ({
+        overrides,
+        currentId,
+        saved,
+        pending,
+        pendingDeletes,
+        supabaseSynced,
+      }),
     }
   )
 );
+
+type Persisted = Pick<SignatureStore, 'overrides' | 'currentId' | 'saved' | 'pending' | 'pendingDeletes' | 'supabaseSynced'>;
 
 /** Marks ids for upload (and cancels a queued delete of the same id). */
 function queued(state: Pick<SignatureStore, 'pending' | 'pendingDeletes'>, ids: string[]) {

@@ -17,6 +17,14 @@ function config() {
   return url && key ? { url, key } : null;
 }
 
+/** Supabase client acting as the signed-in caller (row level security applies), or null without config or token. */
+export function clientAs(request: Request) {
+  const cfg = config();
+  const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  if (!cfg || !token) return null;
+  return createClient(cfg.url, cfg.key, { ...options, global: { headers: { Authorization: `Bearer ${token}` } } });
+}
+
 export async function checkAccess(request: Request): Promise<Access> {
   const cfg = config();
   if (!cfg) return 'not-configured';
