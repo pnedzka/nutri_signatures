@@ -7,6 +7,7 @@ Generator stopek e-mail dla Nutri Partners. Pracownik wpisuje swoje dane (albo w
 ## Funkcje
 
 - **logowanie wspólnym kontem Nutri Partners** (Supabase neutralizatora); wejdą administratorzy i osoby z uprawnieniem `signatures` w `profiles.apps`. Konta, reset hasła i uprawnienia są w centrum aplikacji (https://nutripartners.vercel.app → User management); bez dostępu widać komunikat i przycisk „Wszystkie aplikacje”
+- **dane z profilu w centrum** (od 21.10.2026): pusty formularz wypełnia się danymi z „My profile” w centrum (imię i nazwisko, stanowisko, dział, telefony, e-mail logowania, LinkedIn, adres biura z listy biur); przycisk „Uzupełnij z mojego profilu” robi to na żądanie. Dane czyta przeglądarka jako zalogowana osoba (`src/lib/profile.ts`: własny wiersz `profiles` i tabela `offices`). Zdjęcia z profilu nie są używane, bo stopka potrzebuje publicznego linku
 
 - 3 szablony: **Nowoczesna**, **Minimalistyczna**, **Baner**
 - ikony przy telefonie, e-mailu, stronie i adresie (albo litery — do wyboru)
@@ -105,6 +106,13 @@ W Preview przeglądarka używa `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, a
 4. **Pilna poprawka:** PR do `main`, potem `main` scalić do `develop`.
 
 Darmowa baza dev usypia się po 7 dniach bez użycia. Wybudzenie: Supabase → projekt `nutri-dev` → Restore (ok. minuty).
+
+## Monitorowanie
+
+- Błędy przeglądarki i serwera trafiają do **Sentry** (wspólny projekt aplikacji Nutri Partners, tag `app: signatures`), gdy ustawione są `SENTRY_DSN` (serwer) i `VITE_SENTRY_DSN` (przeglądarka), ta sama wartość, w Production i Preview. Bez nich nic nie jest wysyłane.
+- Serwer: `api/_lib/monitoring.ts` (`logError`, `monitored` dla handlerów API: nieoczekiwany błąd → 500 i zgłoszenie). Przeglądarka: `src/lib/monitoring.ts`.
+- Do Sentry nie trafiają ciasteczka, nagłówki, treść żądań ani fragment adresu (`#sso=…`). Osobę opisuje id konta i e-mail.
+- Szczegóły i alerty: README centrum, „Monitorowanie i błędy”.
 
 ## Wdrożenie (Vercel)
 

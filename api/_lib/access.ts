@@ -4,6 +4,7 @@
 // only their own row.
 
 import { createClient } from '@supabase/supabase-js';
+import { logError } from './monitoring.js';
 
 const APP_ID = 'signatures';
 const options = { auth: { persistSession: false, autoRefreshToken: false } };
@@ -31,10 +32,15 @@ export async function checkAccess(request: Request): Promise<Access> {
   if (!token) return 'session';
   // No default Authorization header here: getUser sends the token itself (two headers would read "Bearer x, Bearer x").
   const { data, error } = await createClient(cfg.url, cfg.key, options).auth.getUser(token);
+  // A 401 "Invalid API key" means our own SUPABASE_ANON_KEY is wrong, not the person's session: log it.
+  if (error && error.status === 401 && /api.?key/i.test(`${error.code ?? ''} ${error.message}`)) logError('access.getUser', error);
   if (error || !data.user) return 'session';
   const asUser = createClient(cfg.url, cfg.key, { ...options, global: { headers: { Authorization: `Bearer ${token}` } } });
   const { data: profile, error: profileError } = await asUser.from('profiles').select('role, apps').eq('id', data.user.id).maybeSingle();
-  if (profileError) return 'session';
+  if (profileError) {
+    logError('access.profile', profileError);
+    return 'session';
+  }
   const apps = Array.isArray(profile?.apps) ? (profile.apps as string[]) : [];
   return profile?.role === 'admin' || apps.includes(APP_ID) ? 'ok' : 'forbidden';
 }

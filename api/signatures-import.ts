@@ -10,6 +10,7 @@
 import { createHash } from 'node:crypto';
 import { get, list } from '@vercel/blob';
 import { checkAccess, clientAs } from './_lib/access.js';
+import { logError, monitored } from './_lib/monitoring.js';
 
 const PREFIX = 'signatures/';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -62,7 +63,7 @@ async function readBlob(pathname: string): Promise<BlobSignature | null> {
   }
 }
 
-export async function POST(request: Request): Promise<Response> {
+export const POST = monitored('signatures.import', async (request) => {
   if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return json({ error: 'not-configured' }, 503);
   const access = await checkAccess(request);
   if (access === 'not-configured') return json({ error: 'not-configured' }, 503);
@@ -72,7 +73,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!db) return json({ error: 'session' }, 401);
 
   const { count, error: countError } = await db.from('email_signatures').select('id', { count: 'exact', head: true });
-  if (countError) return json({ error: 'database' }, 502);
+  if (countError) {
+    logError('signatures.import', countError, { step: 'count' });
+    return json({ error: 'database' }, 502);
+  }
   if ((count ?? 0) > 0) return json({ imported: 0 });
 
   let items: BlobSignature[];
@@ -85,7 +89,8 @@ export async function POST(request: Request): Promise<Response> {
       cursor = page.hasMore ? page.cursor : undefined;
     } while (cursor);
     items = (await Promise.all(pathnames.map(readBlob))).filter((s): s is BlobSignature => s !== null);
-  } catch {
+  } catch (error) {
+    logError('signatures.import', error, { step: 'blob' });
     return json({ error: 'storage' }, 502);
   }
   if (!items.length) return json({ imported: 0 });
@@ -98,6 +103,9 @@ export async function POST(request: Request): Promise<Response> {
   }));
   // Two people opening the app at once both import the same ids: the second insert skips them.
   const { error } = await db.from('email_signatures').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
-  if (error) return json({ error: 'database' }, 502);
+  if (error) {
+    logError('signatures.import', error, { step: 'insert', count: rows.length });
+    return json({ error: 'database' }, 502);
+  }
   return json({ imported: rows.length });
-}
+});

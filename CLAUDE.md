@@ -19,7 +19,16 @@ Wspólne zasady, zmienne, procedura wydań i pułapki są w `CLAUDE.md` repo `pn
 - `BLOB_READ_WRITE_TOKEN` (stary magazyn Vercel Blob) jest tylko w Production i Development i służy wyłącznie jednorazowemu przeniesieniu (`api/signatures-import.ts`). Nie dodawać go do Preview. Po przeniesieniu na produkcji do usunięcia razem z `TEAM_PASSWORD`.
 - Wydanie tylko po „wdrażaj”: PR `develop` → `main` scalany merge commitem, potem sprawdzić wdrożenie produkcyjne.
 
+## Dane z profilu (od 21.10.2026)
+
+- Formularz wypełnia się z „My profile” centrum (`src/lib/profile.ts`, kolumny `profiles` i tabela `offices` z `db/schema.sql` repo `nutri_hub`). Bez tych kolumn w bazie (np. przed wydaniem schematu) zapytanie się nie udaje i formularz po prostu zostaje pusty. Wydawać po schemacie centrum.
+
+## Monitorowanie (od 20.10.2026)
+
+- Sentry: `SENTRY_DSN` + `VITE_SENTRY_DSN` w Production i Preview; na serwerze `logError` zamiast `console.error`, handlery API opakowane w `monitored` (`api/_lib/monitoring.ts`). Całość opisuje README centrum, „Monitorowanie i błędy”.
+
 ## Praca z repo
 
 - PR-y idą do `develop` (squash). Na produkcję tylko na polecenie właściciela, zob. „Środowiska” wyżej.
+- **Code review automatyczne** (od 20.10.2026): `.github/workflows/claude-code-review.yml` (GitHub Actions, `anthropics/claude-code-action`, plugin `code-review`) komentuje PR, gdy przestaje być szkicem (Ready for review) i po kolejnych pushach; nie blokuje scalania. PR-y wydań (`develop` → `main`) i synchronizacji (`main` → `develop`) pomija. Potrzebuje sekretu repo `ANTHROPIC_API_KEY` (GitHub → Settings → Secrets and variables → Actions, wpisuje właściciel) i aplikacji Claude na GitHubie. Akcja działa tylko wtedy, gdy plik workflow jest identyczny na `main` (domyślna gałąź), więc jego zmiany wprowadza się na `main`.
 - Sandbox Claude Code nie łączy się z supabase.co ani *.vercel.app. Używaj narzędzi MCP: Supabase, Vercel.

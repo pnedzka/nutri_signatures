@@ -11,7 +11,7 @@ function Screen({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <img src="/logo.png" alt="Nutri Partners" width={180} height={35} />
+          <img src="/logo-app.png" alt="Nutri Partners" width={180} height={35} />
           <p className="mt-3 text-sm text-gray-500">Generator stopek e-mail</p>
         </div>
         <Card>
