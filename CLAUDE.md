@@ -16,7 +16,7 @@ Wspólne zasady, zmienne, procedura wydań i pułapki są w `CLAUDE.md` repo `pn
 | Zmienne w Vercelu | Production | Preview: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` (baza dev), `VITE_HUB_URL` (centrum dev) |
 
 - Zapisane stopki: tabela `email_signatures` w Supabase (schemat w `db/schema.sql` repo `nutri_documentation`, RLS: admin albo `signatures` w `profiles.apps`), czytana i zapisywana w przeglądarce sesją użytkownika. W dev to baza `nutri-dev`.
-- `BLOB_READ_WRITE_TOKEN` (stary magazyn Vercel Blob) jest tylko w Production i Development i służy wyłącznie jednorazowemu przeniesieniu (`api/signatures-import.ts`). Nie dodawać go do Preview. Po przeniesieniu na produkcji do usunięcia razem z `TEAM_PASSWORD`.
+- Stary magazyn Vercel Blob (`BLOB_READ_WRITE_TOKEN`, `TEAM_PASSWORD`) nie jest już używany: lista przeniesiona do tabeli 21.10.2026.
 - Wydanie tylko po „wdrażaj”: PR `develop` → `main` scalany merge commitem, potem sprawdzić wdrożenie produkcyjne.
 
 ## Dane z profilu (od 21.10.2026)
