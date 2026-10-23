@@ -80,7 +80,7 @@ Zapisane stopki są w tabeli `email_signatures` wspólnej bazy Supabase aplikacj
 - Zmiany zrobione bez połączenia czekają w przeglądarce i wysyłają się przy następnym połączeniu. Stopki zapisane wcześniej tylko w przeglądarce są wysyłane przy pierwszym połączeniu.
 - Bez Supabase albo bez tabeli (np. przed migracją bazy, przy `npm run dev` bez zmiennych) stopki zapisują się tylko w przeglądarce.
 
-**Przeniesienie ze starego magazynu.** Wcześniej lista była w Vercel Blob. Gdy tabela jest pusta, aplikacja jednorazowo wywołuje `api/signatures-import.ts`, które przenosi tamte stopki (z tymi samymi id) jako zalogowana osoba; do niepustej tabeli nic nie dopisuje. Po przeniesieniu na produkcji można usunąć magazyn Blob `nutri-signatures-stopki`, zmienne `BLOB_READ_WRITE_TOKEN` i `TEAM_PASSWORD` oraz ten plik.
+Wcześniej lista była w Vercel Blob z hasłem zespołu. 21.10.2026 przeniesiono ją do tabeli (14 stopek), a magazyn i jego kod usunięto.
 
 ## Logowanie
 
