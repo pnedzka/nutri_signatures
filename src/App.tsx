@@ -27,6 +27,7 @@ import { Input } from './components/Input';
 import { Button } from './components/Button';
 import { Toasts } from './components/Toasts';
 import { HUB_URL } from './lib/hub';
+import { Footer } from './components/Footer';
 import { useAuth } from './lib/auth';
 import { SavedSignatures } from './components/SavedSignatures';
 import { profileFields } from './lib/profile';
@@ -787,9 +788,7 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="py-6 text-center text-xs text-gray-400">
-        Nutri Partners · generator stopek e-mail
-      </footer>
+      <Footer />
 
       <Toasts />
     </div>

@@ -4,20 +4,24 @@ import { useAuth } from '../lib/auth';
 import { HUB_URL } from '../lib/hub';
 import { Button } from './Button';
 import { Card, CardBody } from './Card';
+import { Footer } from './Footer';
 import { Input } from './Input';
 
 function Screen({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <img src="/logo-app.png" alt="Nutri Partners" width={180} height={35} />
-          <p className="mt-3 text-sm text-gray-500">Generator stopek e-mail</p>
+    <div className="min-h-screen flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-sm">
+          <div className="flex flex-col items-center mb-8">
+            <img src="/logo-app.png" alt="Nutri Partners" width={180} height={35} />
+            <p className="mt-3 text-sm text-gray-500">Generator stopek e-mail</p>
+          </div>
+          <Card>
+            <CardBody className="py-6">{children}</CardBody>
+          </Card>
         </div>
-        <Card>
-          <CardBody className="py-6">{children}</CardBody>
-        </Card>
       </div>
+      <Footer links={false} />
     </div>
   );
 }

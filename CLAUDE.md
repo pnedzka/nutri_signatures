@@ -27,6 +27,10 @@ Wspólne zasady, zmienne, procedura wydań i pułapki są w `CLAUDE.md` repo `pn
 
 - Sentry: `SENTRY_DSN` + `VITE_SENTRY_DSN` w Production i Preview; na serwerze `logError` zamiast `console.error`, handlery API opakowane w `monitored` (`api/_lib/monitoring.ts`). Całość opisuje README centrum, „Monitorowanie i błędy”.
 
+## Stopka (od 12.11.2026)
+
+- Na dole każdego ekranu `src/components/Footer.tsx`, ten sam wzór co w centrum i whoisowner: „© rok Nutri Partners · Generator stopek e-mail”, linki „Wszystkie aplikacje” i „Mój profil” (centrum), wersja (skrót commita), poza produkcją znaczek „Dev”. Na ekranach logowania bez linków.
+
 ## Praca z repo
 
 - PR-y idą do `develop` (squash). Na produkcję tylko na polecenie właściciela, zob. „Środowiska” wyżej.
