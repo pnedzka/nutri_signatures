@@ -25,6 +25,8 @@ import { Input } from './components/Input';
 import { Button } from './components/Button';
 import { Toasts } from './components/Toasts';
 import { HUB_URL } from './lib/hub';
+import { useHeaderPhoto } from './lib/headerPhoto';
+import { supabase } from './lib/supabase';
 import { AppHeader } from './components/AppHeader';
 import { Footer } from './components/Footer';
 import { useAuth } from './lib/auth';
@@ -269,6 +271,7 @@ const instructions: { id: string; label: string; steps: string[] }[] = [
 export default function App() {
   const { overrides, update, reset } = useSignatureStore();
   const { email, name, role, signOut } = useAuth();
+  const photo = useHeaderPhoto(supabase, Boolean(email));
   const toast = useToast();
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [guide, setGuide] = useState(instructions[0].id);
@@ -365,7 +368,7 @@ export default function App() {
       <AppHeader
         appName="Generator stopek e-mail"
         hubUrl={HUB_URL}
-        user={email ? { name, email, role } : null}
+        user={email ? { name, email, role, avatarUrl: photo } : null}
         onSignOut={() => void signOut()}
         lang="pl"
         logoSrc="/logo-app.png"
