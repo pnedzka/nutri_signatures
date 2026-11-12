@@ -27,6 +27,10 @@ Wspólne zasady, zmienne, procedura wydań i pułapki są w `CLAUDE.md` repo `pn
 
 - Sentry: `SENTRY_DSN` + `VITE_SENTRY_DSN` w Production i Preview; na serwerze `logError` zamiast `console.error`, handlery API opakowane w `monitored` (`api/_lib/monitoring.ts`). Całość opisuje README centrum, „Monitorowanie i błędy”.
 
+## Górna belka i stopka (od 12.11.2026)
+
+- `src/components/AppHeader.tsx` i `src/components/Footer.tsx` to identyczne kopie plików z `nutri_hub` (wspólne dla wszystkich aplikacji). Zmieniać je w `nutri_hub` i kopiować tutaj bez zmian; to, co dotyczy tej aplikacji, idzie w propsach (w `src/App.tsx`). Przycisk „Wyczyść formularz” jest przy tytule strony, nie w belce. Na ekranach logowania stopka jest bez linków.
+
 ## Praca z repo
 
 - PR-y idą do `develop` (squash). Na produkcję tylko na polecenie właściciela, zob. „Środowiska” wyżej.

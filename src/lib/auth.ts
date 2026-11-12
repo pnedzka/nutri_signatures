@@ -9,6 +9,9 @@ type Status = 'loading' | 'unconfigured' | 'signedOut' | 'noAccess' | 'signedIn'
 interface AuthState {
   status: Status;
   email: string | null;
+  /** From `profiles`, for the header. */
+  name: string | null;
+  role: 'admin' | 'user';
   error: string | null;
   init: () => () => void;
   signIn: (email: string, password: string) => Promise<void>;
@@ -35,25 +38,29 @@ let signingOut = false;
 export const useAuth = create<AuthState>((set) => {
   async function check(session: Session | null) {
     if (!session) {
-      set({ status: 'signedOut', email: null });
+      set({ status: 'signedOut', email: null, name: null, role: 'user' });
       setMonitoringUser(null);
       return;
     }
     const email = (session.user.email ?? '').toLowerCase();
     setMonitoringUser({ id: session.user.id, email });
     // Row level security returns only the user's own row.
-    const { data, error } = await supabase!.from('profiles').select('role, apps').eq('id', session.user.id).maybeSingle();
+    const { data, error } = await supabase!.from('profiles').select('role, apps, full_name').eq('id', session.user.id).maybeSingle();
     if (error) {
       set({ status: 'error', email, error: `Nie udało się sprawdzić uprawnień: ${error.message}` });
       return;
     }
     const apps = Array.isArray(data?.apps) ? (data.apps as string[]) : [];
-    set({ status: data?.role === 'admin' || apps.includes(APP_ID) ? 'signedIn' : 'noAccess', email, error: null });
+    const role = data?.role === 'admin' ? 'admin' : 'user';
+    const name = typeof data?.full_name === 'string' && data.full_name.trim() ? data.full_name.trim() : null;
+    set({ status: role === 'admin' || apps.includes(APP_ID) ? 'signedIn' : 'noAccess', email, name, role, error: null });
   }
 
   return {
     status: 'loading',
     email: null,
+    name: null,
+    role: 'user',
     error: null,
     init: () => {
       if (!supabase) {
@@ -93,7 +100,7 @@ export const useAuth = create<AuthState>((set) => {
     signOut: async () => {
       signingOut = true;
       await supabase?.auth.signOut();
-      set({ status: 'signedOut', email: null });
+      set({ status: 'signedOut', email: null, name: null, role: 'user' });
       setMonitoringUser(null);
       signOutOfHub();
     },

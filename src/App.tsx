@@ -6,8 +6,6 @@ import {
   Download,
   Image as ImageIcon,
   Info,
-  LayoutGrid,
-  LogOut,
   Mail,
   Monitor,
   Palette,
@@ -27,6 +25,8 @@ import { Input } from './components/Input';
 import { Button } from './components/Button';
 import { Toasts } from './components/Toasts';
 import { HUB_URL } from './lib/hub';
+import { AppHeader } from './components/AppHeader';
+import { Footer } from './components/Footer';
 import { useAuth } from './lib/auth';
 import { SavedSignatures } from './components/SavedSignatures';
 import { profileFields } from './lib/profile';
@@ -268,7 +268,7 @@ const instructions: { id: string; label: string; steps: string[] }[] = [
 
 export default function App() {
   const { overrides, update, reset } = useSignatureStore();
-  const { email, signOut } = useAuth();
+  const { email, name, role, signOut } = useAuth();
   const toast = useToast();
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [guide, setGuide] = useState(instructions[0].id);
@@ -362,48 +362,28 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-white border-b border-gray-100">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <a href={HUB_URL} className="shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CC1F1F]" title="Wszystkie aplikacje Nutri Partners">
-              <img src="/logo-app.png" alt="Aplikacje Nutri Partners" width={150} height={29} />
-            </a>
-            <span className="hidden sm:block h-5 w-px bg-gray-200" aria-hidden="true" />
-            <span className="hidden sm:block text-sm font-medium text-gray-500 truncate">Generator stopek e-mail</span>
-          </div>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <a
-              href={HUB_URL}
-              className="inline-flex items-center justify-center gap-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 active:bg-gray-100"
-              aria-label="Wszystkie aplikacje"
-              title="Wszystkie aplikacje Nutri Partners"
-            >
-              <LayoutGrid size={16} />
-              <span className="hidden sm:inline">Wszystkie aplikacje</span>
-            </a>
-            <Button variant="secondary" size="sm" onClick={handleReset} className="whitespace-nowrap">
-              <RotateCcw size={14} />
-              Wyczyść
-            </Button>
-            <button
-              onClick={() => void signOut()}
-              className="inline-flex items-center justify-center gap-2 min-h-11 min-w-11 sm:min-h-0 sm:min-w-0 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 active:bg-gray-100"
-              aria-label="Wyloguj się"
-              title={email ? `Wyloguj się (${email})` : 'Wyloguj się'}
-            >
-              <LogOut size={16} />
-              <span className="hidden lg:inline">Wyloguj</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        appName="Generator stopek e-mail"
+        hubUrl={HUB_URL}
+        user={email ? { name, email, role } : null}
+        onSignOut={() => void signOut()}
+        lang="pl"
+        logoSrc="/logo-app.png"
+      />
 
       <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Twoja stopka e-mail</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Uzupełnij dane, wybierz szablon i wklej gotową stopkę do Gmaila, Outlooka lub Apple Mail.
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Twoja stopka e-mail</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Uzupełnij dane, wybierz szablon i wklej gotową stopkę do Gmaila, Outlooka lub Apple Mail.
+            </p>
+          </div>
+          {/* Here rather than in the header, which is the same in every Nutri Partners app (AppHeader). */}
+          <Button variant="secondary" size="sm" onClick={handleReset} className="self-start whitespace-nowrap">
+            <RotateCcw size={14} />
+            Wyczyść formularz
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,440px)_minmax(0,1fr)] gap-6 items-start">
@@ -787,9 +767,7 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="py-6 text-center text-xs text-gray-400">
-        Nutri Partners · generator stopek e-mail
-      </footer>
+      <Footer appName="Generator stopek e-mail" hubUrl={HUB_URL} lang="pl" />
 
       <Toasts />
     </div>
