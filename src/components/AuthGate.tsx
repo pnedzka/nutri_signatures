@@ -21,7 +21,7 @@ function Screen({ children }: { children: ReactNode }) {
           </Card>
         </div>
       </div>
-      <Footer links={false} />
+      <Footer appName="Generator stopek e-mail" hubUrl={HUB_URL} lang="pl" links={false} />
     </div>
   );
 }
